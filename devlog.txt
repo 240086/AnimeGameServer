@@ -94,4 +94,22 @@ socket
 
  ------------------------------------------------------------
 
- 
+ 2026-03-11
+
+Concurrency system added
+
+Modules:
+- ThreadPool
+- GlobalThreadPool
+
+Architecture upgrade:
+
+IO Thread
+ → PacketParser
+ → Dispatcher
+ → ThreadPool
+ → Services
+
+  ------------------------------------------------------------
+
+  

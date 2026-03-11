@@ -1,12 +1,10 @@
 #include "common/logger/Logger.h"
 #include "common/config/Config.h"
-
 #include "network/TcpServer.h"
 #include "network/dispatcher/MessageDispatcher.h"
-
 #include "services/ServiceManager.h"
-
 #include <boost/asio.hpp>
+#include "common/thread/GlobalThreadPool.h"
 
 int main()
 {
@@ -44,6 +42,9 @@ int main()
     memcpy(test + 6, "hello", 5);
 
     MessageDispatcher::Instance().Dispatch(id, nullptr, "hello", 5);
+
+    GlobalThreadPool::Instance().GetPool().Enqueue([]()
+                                                   { LOG_INFO("thread pool test task"); });
 
     ioContext.run();
 
