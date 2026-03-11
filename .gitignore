@@ -58,3 +58,5 @@ coverage/
 # Dependency build artifacts
 # =========================
 third_party/build/
+
+devlog.txt

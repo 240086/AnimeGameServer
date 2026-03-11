@@ -1,5 +1,6 @@
 #include "network/Connection.h"
 #include "common/logger/Logger.h"
+#include "network/dispatcher/MessageDispatcher.h"
 
 Connection::Connection(boost::asio::io_context& ioContext)
     : socket_(ioContext)
@@ -15,6 +16,11 @@ void Connection::Start()
 {
     LOG_INFO("client connected");
     DoRead();
+}
+
+void Connection::HandlePacket(uint16_t msgId, const char* data, size_t len)
+{
+    MessageDispatcher::Instance().Dispatch(msgId, this, data, len);
 }
 
 void Connection::DoRead()

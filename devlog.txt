@@ -41,3 +41,21 @@ Implemented:
 
 ------------------------------------------------------------
 
+2026-03-11
+
+Network protocol system added
+
+Features:
+- Packet structure
+- MessageId enum
+- MessageDispatcher
+- handler registration
+- handler dispatch
+
+Next step:
+- service layer
+- login service
+- gacha service
+
+------------------------------------------------------------
+
