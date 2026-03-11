@@ -1,0 +1,60 @@
+# =========================
+# Build directory
+# =========================
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+Makefile
+compile_commands.json
+
+# =========================
+# Binary files
+# =========================
+*.exe
+*.out
+*.app
+*.o
+*.obj
+*.so
+*.a
+*.dll
+*.dylib
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+
+# =========================
+# VSCode
+# =========================
+.vscode/
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Temporary files
+# =========================
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# =========================
+# Testing / coverage
+# =========================
+coverage/
+*.gcda
+*.gcno
+*.gcov
+
+# =========================
+# Dependency build artifacts
+# =========================
+third_party/build/

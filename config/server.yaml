@@ -1,0 +1,15 @@
+server:
+  name: AnimeGameServer
+  port: 9000
+  worker_threads: 4
+
+database:
+  mysql_host: 127.0.0.1
+  mysql_port: 3306
+
+redis:
+  host: 127.0.0.1
+  port: 6379
+
+log:
+  level: debug
