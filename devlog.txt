@@ -28,3 +28,16 @@ Next step:
 - Gateway server
 
 ------------------------------------------------------------
+
+2026-03-11
+
+Network module started.
+
+Implemented:
+- TcpServer
+- Connection
+- async accept
+- async read
+
+------------------------------------------------------------
+

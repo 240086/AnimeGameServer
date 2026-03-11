@@ -1,5 +1,8 @@
 #include "common/logger/Logger.h"
 #include "common/config/Config.h"
+#include "network/TcpServer.h"
+
+#include <boost/asio.hpp>
 
 int main()
 {
@@ -11,10 +14,17 @@ int main()
         return -1;
     }
 
-    LOG_INFO("server port: {}", Config::Instance().GetServerPort());
-    LOG_INFO("worker threads: {}", Config::Instance().GetWorkerThreads());
+    int port = Config::Instance().GetServerPort();
 
-    LOG_INFO("server start success");
+    boost::asio::io_context ioContext;
+
+    TcpServer server(ioContext, port);
+
+    server.StartAccept();
+
+    LOG_INFO("server start at port {}", port);
+
+    ioContext.run();
 
     return 0;
 }
