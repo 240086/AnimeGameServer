@@ -2,8 +2,16 @@ cmake_minimum_required(VERSION 3.16)
 
 project(AnimeGameServer)
 
+# 加上这一行
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# 修复 Boost 警告
+if(POLICY CMP0167)
+    cmake_policy(SET CMP0167 NEW)
+endif()
 
 # 1. 查找依赖包
 find_package(spdlog REQUIRED)
@@ -25,7 +33,7 @@ add_executable(GameServer ${SRC_FILES})
 target_link_libraries(GameServer
     PRIVATE
     spdlog::spdlog
-    yaml-cpp
+    yaml-cpp::yaml-cpp
     Boost::system
 )
 

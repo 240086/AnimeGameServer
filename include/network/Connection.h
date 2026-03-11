@@ -14,7 +14,7 @@ public:
 
     void Start();
 
-    void Connection::HandlePacket(uint16_t msgId, const char* data, size_t len);
+    void HandlePacket(uint16_t msgId, const char* data, size_t len);
 
 private:
     void DoRead();

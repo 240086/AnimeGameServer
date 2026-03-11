@@ -1,6 +1,10 @@
 #include "common/logger/Logger.h"
 #include "common/config/Config.h"
+
 #include "network/TcpServer.h"
+#include "network/dispatcher/MessageDispatcher.h"
+
+#include "services/ServiceManager.h"
 
 #include <boost/asio.hpp>
 
@@ -14,6 +18,8 @@ int main()
         return -1;
     }
 
+    ServiceManager::Instance().InitServices();
+
     int port = Config::Instance().GetServerPort();
 
     boost::asio::io_context ioContext;
@@ -23,6 +29,17 @@ int main()
     server.StartAccept();
 
     LOG_INFO("server start at port {}", port);
+
+    /*
+        调试消息系统
+    */
+
+    MessageDispatcher::Instance().Dispatch(
+        1,
+        nullptr,
+        "test_login",
+        10
+    );
 
     ioContext.run();
 

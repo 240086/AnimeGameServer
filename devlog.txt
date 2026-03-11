@@ -59,3 +59,20 @@ Next step:
 
 ------------------------------------------------------------
 
+2026-03-11
+
+Service layer implemented
+
+Services:
+- LoginService
+- GachaService
+
+Architecture:
+
+Network
+ → Dispatcher
+ → Services
+
+ ------------------------------------------------------------
+
+ 
