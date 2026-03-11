@@ -34,12 +34,16 @@ int main()
         调试消息系统
     */
 
-    MessageDispatcher::Instance().Dispatch(
-        1,
-        nullptr,
-        "test_login",
-        10
-    );
+    uint32_t len = 5;
+    uint16_t id = 1;
+
+    char test[11];
+
+    memcpy(test, &len, 4);
+    memcpy(test + 4, &id, 2);
+    memcpy(test + 6, "hello", 5);
+
+    MessageDispatcher::Instance().Dispatch(id, nullptr, "hello", 5);
 
     ioContext.run();
 

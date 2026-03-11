@@ -2,6 +2,8 @@
 
 #include <boost/asio.hpp>
 #include <memory>
+#include "network/buffer/RecvBuffer.h"
+#include "network/protocol/PacketParser.h"
 
 class Connection : public std::enable_shared_from_this<Connection>
 {
@@ -23,4 +25,7 @@ private:
     tcp::socket socket_;
     enum { BUFFER_SIZE = 1024 };
     char buffer_[BUFFER_SIZE];
+    
+    RecvBuffer recv_buffer_;
+    PacketParser parser_;
 };

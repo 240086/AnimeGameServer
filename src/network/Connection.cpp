@@ -33,7 +33,15 @@ void Connection::DoRead()
         {
             if (!ec)
             {
-                LOG_INFO("received {} bytes", length);
+                recv_buffer_.Append(buffer_, length);
+
+                parser_.Parse(
+                    recv_buffer_,
+                    [this](uint16_t msgId, const char* data, size_t len)
+                    {
+                        HandlePacket(msgId, data, len);
+                    });
+
                 DoRead();
             }
             else
