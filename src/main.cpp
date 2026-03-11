@@ -22,6 +22,19 @@ int main()
 
     boost::asio::io_context ioContext;
 
+    // --- 新增：信号监听逻辑 ---
+    boost::asio::signal_set signals(ioContext, SIGINT, SIGTERM);
+    signals.async_wait([&](const boost::system::error_code& error, int signal_number) {
+        LOG_INFO("Capture signal {}, server shutting down...", signal_number);
+        
+        // 停止网络循环
+        ioContext.stop(); 
+        
+        // 如果有线程池，也可以在这里关闭
+        // GlobalThreadPool::Instance().Shutdown(); 
+    });
+    // ------------------------
+
     TcpServer server(ioContext, port);
 
     server.StartAccept();

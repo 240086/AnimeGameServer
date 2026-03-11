@@ -1,13 +1,15 @@
 #include "network/Connection.h"
 #include "common/logger/Logger.h"
 #include "network/dispatcher/MessageDispatcher.h"
+#include "network/manager/ConnectionManager.h"
 
-Connection::Connection(boost::asio::io_context& ioContext)
+Connection::Connection(boost::asio::io_context &ioContext)
     : socket_(ioContext)
 {
+    last_active_ = std::chrono::steady_clock::now();
 }
 
-Connection::tcp::socket& Connection::GetSocket()
+Connection::tcp::socket &Connection::GetSocket()
 {
     return socket_;
 }
@@ -18,7 +20,7 @@ void Connection::Start()
     DoRead();
 }
 
-void Connection::HandlePacket(uint16_t msgId, const char* data, size_t len)
+void Connection::HandlePacket(uint16_t msgId, const char *data, size_t len)
 {
     MessageDispatcher::Instance().Dispatch(msgId, this, data, len);
 }
@@ -26,6 +28,7 @@ void Connection::HandlePacket(uint16_t msgId, const char* data, size_t len)
 void Connection::DoRead()
 {
     auto self(shared_from_this());
+    last_active_ = std::chrono::steady_clock::now();
 
     socket_.async_read_some(
         boost::asio::buffer(buffer_, BUFFER_SIZE),
@@ -37,7 +40,7 @@ void Connection::DoRead()
 
                 parser_.Parse(
                     recv_buffer_,
-                    [this](uint16_t msgId, const char* data, size_t len)
+                    [this](uint16_t msgId, const char *data, size_t len)
                     {
                         HandlePacket(msgId, data, len);
                     });
@@ -47,6 +50,7 @@ void Connection::DoRead()
             else
             {
                 LOG_WARN("client disconnected");
+                socket_.close();
             }
         });
 }

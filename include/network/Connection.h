@@ -4,6 +4,7 @@
 #include <memory>
 #include "network/buffer/RecvBuffer.h"
 #include "network/protocol/PacketParser.h"
+#include <chrono>
 
 class Connection : public std::enable_shared_from_this<Connection>
 {
@@ -28,4 +29,6 @@ private:
     
     RecvBuffer recv_buffer_;
     PacketParser parser_;
+
+    std::chrono::steady_clock::time_point last_active_;
 };

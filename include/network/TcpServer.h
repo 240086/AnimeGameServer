@@ -14,7 +14,11 @@ public:
 private:
     void DoAccept();
 
+    void CheckHeartbeat();
+
 private:
     boost::asio::io_context& ioContext_;
     tcp::acceptor acceptor_;
+
+    boost::asio::steady_timer timer_;
 };
