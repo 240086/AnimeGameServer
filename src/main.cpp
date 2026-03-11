@@ -5,6 +5,8 @@
 #include "services/ServiceManager.h"
 #include <boost/asio.hpp>
 #include "common/thread/GlobalThreadPool.h"
+#include "game/gacha/GachaSystem.h"
+#include "services/GachaService.h"
 
 int main()
 {
@@ -17,27 +19,32 @@ int main()
     }
 
     ServiceManager::Instance().InitServices();
+    printf("DEBUG: After InitServices...\n"); fflush(stdout);
 
     int port = Config::Instance().GetServerPort();
+    printf("DEBUG: Port retrieved: %d\n", port); fflush(stdout);
 
     boost::asio::io_context ioContext;
 
     // --- 新增：信号监听逻辑 ---
     boost::asio::signal_set signals(ioContext, SIGINT, SIGTERM);
-    signals.async_wait([&](const boost::system::error_code& error, int signal_number) {
-        LOG_INFO("Capture signal {}, server shutting down...", signal_number);
-        
-        // 停止网络循环
-        ioContext.stop(); 
-        
-        // 如果有线程池，也可以在这里关闭
-        // GlobalThreadPool::Instance().Shutdown(); 
-    });
+    signals.async_wait([&](const boost::system::error_code &error, int signal_number)
+                       {
+                           LOG_INFO("Capture signal {}, server shutting down...", signal_number);
+
+                           // 停止网络循环
+                           ioContext.stop();
+
+                           // 如果有线程池，也可以在这里关闭
+                           // GlobalThreadPool::Instance().Shutdown();
+                       });
     // ------------------------
 
     TcpServer server(ioContext, port);
+    printf("DEBUG: After TcpServer ctor...\n"); fflush(stdout);
 
     server.StartAccept();
+    printf("DEBUG: After StartAccept...\n"); fflush(stdout);
 
     LOG_INFO("server start at port {}", port);
 
@@ -58,6 +65,13 @@ int main()
 
     GlobalThreadPool::Instance().GetPool().Enqueue([]()
                                                    { LOG_INFO("thread pool test task"); });
+
+    for (int i = 0; i < 10; i++)
+    {
+        auto item = GachaSystem::Instance().DrawOnce();
+
+        LOG_INFO("draw result: {} rarity={}", item.name, item.rarity);
+    }
 
     ioContext.run();
 

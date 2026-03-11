@@ -127,3 +127,12 @@ Features:
 
 ------------------------------------------------------------
 
+Refactor gacha module
+
+Separate network service and game logic
+
+services/GachaService  -> network handler
+game/gacha/GachaSystem -> gacha logic
+
+------------------------------------------------------------
+
