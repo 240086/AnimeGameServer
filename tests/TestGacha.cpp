@@ -2,6 +2,7 @@
 #include <map>
 
 #include "game/gacha/GachaSystem.h"
+#include "game/player/PlayerManager.h"
 
 void TestGacha()
 {
@@ -28,4 +29,15 @@ void TestGacha()
             << "%"
             << std::endl;
     }
+}
+
+void TestPlayer()
+{
+    auto player = PlayerManager::Instance().CreatePlayer(1001);
+
+    player->GetInventory().AddItem(1);
+
+    player->GetGachaHistory().Record(4);
+
+    std::cout << "TestPlayer()\n";
 }

@@ -166,3 +166,49 @@ Architecture preparation for:
 - Pity system
 - Dynamic pool configuration
 
+------------------------------------------------------------
+
+2026-03-12
+
+Build system refactor
+
+Modules:
+- CMake
+- tests
+
+Changes:
+- introduced core library AnimeGameServerCore
+- separated GameServer and TestRunner targets
+- added tests folder for module testing
+
+Benefits:
+- reusable core modules
+- independent test execution
+- improved project scalability
+
+------------------------------------------------------------
+
+2026-03-12
+
+Player system implemented
+
+Modules:
+- Player
+- PlayerManager
+- Inventory
+- GachaHistory
+
+Features:
+- player domain object
+- thread-safe player manager
+- inventory system
+- gacha history tracking
+
+Architecture update:
+
+Connection
+ → PlayerManager
+ → Player
+ → Game Systems
+
+ 
