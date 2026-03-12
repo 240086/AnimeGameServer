@@ -1,5 +1,5 @@
 #pragma once
-
+// F:\VSCode_project\Cpp_Proj\AnimeGameServer\include\network\Connection.h
 #include <boost/asio.hpp>
 #include <memory>
 #include "network/buffer/RecvBuffer.h"
@@ -19,6 +19,16 @@ public:
 
     void HandlePacket(uint16_t msgId, const char* data, size_t len);
 
+    void SetPlayerId(uint64_t id)
+    {
+        player_id_ = id;
+    }
+
+    uint64_t GetPlayerId() const
+    {
+        return player_id_;
+    }
+
 private:
     void DoRead();
 
@@ -29,6 +39,8 @@ private:
     
     RecvBuffer recv_buffer_;
     PacketParser parser_;
+
+    uint64_t player_id_ = 0;
 
     std::chrono::steady_clock::time_point last_active_;
 };

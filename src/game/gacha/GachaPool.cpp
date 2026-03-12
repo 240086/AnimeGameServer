@@ -1,20 +1,22 @@
+// F:\VSCode_project\Cpp_Proj\AnimeGameServer\src\game\gacha\GachaPool.cpp
 #include "game/gacha/GachaPool.h"
 #include "common/random/RandomEngine.h"
 
-void GachaPool::AddItem(const GachaItem& item)
+void GachaPool::AddItem(const GachaItem &item)
 {
     items_.push_back(item);
+    total_weight_ += item.weight;
 }
 
 GachaItem GachaPool::Draw()
 {
-    double r = RandomEngine::Instance().RandDouble(0.0, 1.0);
+    int r = RandomEngine::Instance().RandInt(1, total_weight_);
 
-    double cumulative = 0.0;
+    int cumulative = 0;
 
-    for (auto& item : items_)
+    for (auto &item : items_)
     {
-        cumulative += item.probability;
+        cumulative += item.weight;
 
         if (r <= cumulative)
         {

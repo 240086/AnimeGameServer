@@ -1,3 +1,4 @@
+#include <iostream>
 #include "common/logger/Logger.h"
 #include "common/config/Config.h"
 #include "network/TcpServer.h"
@@ -7,6 +8,24 @@
 #include "common/thread/GlobalThreadPool.h"
 #include "game/gacha/GachaSystem.h"
 #include "services/GachaService.h"
+
+void TestGacha()
+{
+    std::map<int,int> count;
+
+    for(int i=0;i<100000;i++)
+    {
+        auto item = GachaSystem::Instance().DrawOnce();
+
+        count[item.rarity]++;
+    }
+
+    for(auto& [rarity,c]:count)
+    {
+        std::cout << "rarity " << rarity
+                  << " -> " << c << std::endl;
+    }
+}
 
 int main()
 {
@@ -66,12 +85,14 @@ int main()
     GlobalThreadPool::Instance().GetPool().Enqueue([]()
                                                    { LOG_INFO("thread pool test task"); });
 
-    for (int i = 0; i < 10; i++)
-    {
-        auto item = GachaSystem::Instance().DrawOnce();
+    // for (int i = 0; i < 10; i++)
+    // {
+    //     auto item = GachaSystem::Instance().DrawOnce();
 
-        LOG_INFO("draw result: {} rarity={}", item.name, item.rarity);
-    }
+    //     LOG_INFO("draw result: {} rarity={}", item.name, item.rarity);
+    // }
+
+    TestGacha();
 
     ioContext.run();
 

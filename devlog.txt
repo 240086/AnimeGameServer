@@ -136,3 +136,33 @@ game/gacha/GachaSystem -> gacha logic
 
 ------------------------------------------------------------
 
+2026-03-12
+
+Gacha system refactor
+
+Modules:
+- GachaItem
+- GachaPool
+- GachaSystem
+
+Changes:
+- replaced probability-based draw with weight-based system
+- added total_weight optimization
+- improved extensibility for future gacha pools
+
+Network update:
+
+Modules:
+- Connection
+
+Features:
+- added player_id field
+- prepared connection-player binding
+
+Architecture preparation for:
+
+- Player system
+- Gacha history
+- Pity system
+- Dynamic pool configuration
+
