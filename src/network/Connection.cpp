@@ -2,6 +2,7 @@
 #include "common/logger/Logger.h"
 #include "network/dispatcher/MessageDispatcher.h"
 #include "network/manager/ConnectionManager.h"
+#include "game/player/PlayerManager.h"
 
 Connection::Connection(boost::asio::io_context &ioContext)
     : socket_(ioContext)
@@ -16,6 +17,14 @@ Connection::tcp::socket &Connection::GetSocket()
 
 void Connection::Start()
 {
+    last_active_ = std::chrono::steady_clock::now();
+
+    static uint64_t next_player_id = 1;
+
+    player_id_ = next_player_id++;
+
+    PlayerManager::Instance().CreatePlayer(player_id_);
+
     LOG_INFO("client connected");
     DoRead();
 }

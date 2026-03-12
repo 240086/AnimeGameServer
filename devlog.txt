@@ -211,4 +211,26 @@ Connection
  → Player
  → Game Systems
 
- 
+ ------------------------------------------------------------
+
+2026-03-12
+
+Player system integrated with gacha
+
+Modules:
+- Connection
+- PlayerManager
+- GachaService
+
+Features:
+- connection-player binding
+- player inventory update
+- player gacha history tracking
+
+Architecture:
+
+Client
+ → Connection
+ → PlayerManager
+ → Player
+ → Game Systems

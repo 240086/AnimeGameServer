@@ -2,6 +2,7 @@
 
 void TestGacha();
 void TestPlayer();
+void TestPlayerGacha();
 
 int main()
 {
@@ -9,6 +10,7 @@ int main()
 
     TestGacha();
     TestPlayer();
+    TestPlayerGacha();
 
     std::cout<<"Tests finished"<<std::endl;
 

@@ -41,3 +41,21 @@ void TestPlayer()
 
     std::cout << "TestPlayer()\n";
 }
+
+void TestPlayerGacha()
+{
+    auto player = PlayerManager::Instance().CreatePlayer(1);
+
+    for(int i=0;i<10;i++)
+    {
+        auto item = GachaSystem::Instance().DrawOnce();
+
+        player->GetInventory().AddItem(item.id);
+
+        player->GetGachaHistory().Record(item.rarity);
+    }
+
+    auto items = player->GetInventory().GetItems();
+
+    std::cout << "inventory size: " << items.size() << std::endl;
+}
