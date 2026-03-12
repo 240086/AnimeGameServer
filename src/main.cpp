@@ -7,6 +7,7 @@
 #include "services/ServiceManager.h"
 #include "common/thread/GlobalThreadPool.h"
 #include "game/gacha/GachaPoolManager.h"
+#include "game/player/PlayerLogicLoop.h"
 
 int main()
 {
@@ -28,6 +29,8 @@ int main()
 
     int port = Config::Instance().GetServerPort();
 
+    PlayerLogicLoop::Instance().Start();
+
     boost::asio::io_context ioContext;
 
     // 信号处理
@@ -41,6 +44,7 @@ int main()
 
             // 可选
             // GlobalThreadPool::Instance().Shutdown();
+            PlayerLogicLoop::Instance().Stop();
         });
 
     // 启动服务器

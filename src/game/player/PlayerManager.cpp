@@ -1,6 +1,6 @@
 #include "game/player/PlayerManager.h"
 
-PlayerManager& PlayerManager::Instance()
+PlayerManager &PlayerManager::Instance()
 {
     static PlayerManager instance;
     return instance;
@@ -23,7 +23,7 @@ std::shared_ptr<Player> PlayerManager::GetPlayer(uint64_t id)
 
     auto it = players_.find(id);
 
-    if(it != players_.end())
+    if (it != players_.end())
         return it->second;
 
     return nullptr;
@@ -34,4 +34,10 @@ void PlayerManager::RemovePlayer(uint64_t id)
     std::lock_guard<std::mutex> lock(mutex_);
 
     players_.erase(id);
+}
+
+const std::unordered_map<uint64_t, std::shared_ptr<Player>> &
+PlayerManager::GetAllPlayers()
+{
+    return players_;
 }

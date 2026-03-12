@@ -6,30 +6,34 @@
 #include "game/player/Inventory.h"
 #include "game/player/GachaHistory.h"
 #include "game/player/Currency.h"
+#include "game/player/PlayerCommandQueue.h"
 
 class Player
 {
 public:
-
     using PlayerId = uint64_t;
 
     explicit Player(PlayerId id);
 
     PlayerId GetId() const;
 
-    Inventory& GetInventory();
+    Inventory &GetInventory();
 
-    GachaHistory& GetGachaHistory();
+    GachaHistory &GetGachaHistory();
 
-    Currency& GetCurrency();
+    Currency &GetCurrency();
 
-    std::mutex& GetMutex()
+    std::mutex &GetMutex()
     {
         return mutex_;
     }
 
-private:
+    PlayerCommandQueue &GetCommandQueue()
+    {
+        return commandQueue_;
+    }
 
+private:
     PlayerId id_;
 
     Inventory inventory_;
@@ -39,4 +43,6 @@ private:
     Currency currency_;
 
     std::mutex mutex_;
+
+    PlayerCommandQueue commandQueue_;
 };

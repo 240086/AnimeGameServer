@@ -45,15 +45,27 @@ void GachaService::HandleGacha(Connection *conn, const char *data, size_t len)
         return;
     }
 
-    auto item = GachaSystem::Instance().DrawOnce(*player);
+    player->GetCommandQueue().Push(
+        [player, playerId]()
+        {
+            const int COST = 160;
 
-    player->GetInventory().AddItem(item.id);
+            if (!player->GetCurrency().Spend(COST))
+            {
+                LOG_WARN("not enough currency");
+                return;
+            }
 
-    player->GetGachaHistory().Record(item.rarity);
+            auto item = GachaSystem::Instance().DrawOnce(*player);
 
-    LOG_INFO(
-        "player {} draw item {} rarity {}",
-        playerId,
-        item.name,
-        item.rarity);
+            player->GetInventory().AddItem(item.id);
+
+            player->GetGachaHistory().Record(item.rarity);
+
+            LOG_INFO(
+                "player {} draw item {} rarity {}",
+                playerId,
+                item.name,
+                item.rarity);
+        });
 }

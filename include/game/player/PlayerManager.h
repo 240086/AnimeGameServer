@@ -9,8 +9,7 @@
 class PlayerManager
 {
 public:
-
-    static PlayerManager& Instance();
+    static PlayerManager &Instance();
 
     std::shared_ptr<Player> CreatePlayer(uint64_t id);
 
@@ -18,9 +17,10 @@ public:
 
     void RemovePlayer(uint64_t id);
 
-private:
+    const std::unordered_map<uint64_t, std::shared_ptr<Player>> &GetAllPlayers();
 
-    std::unordered_map<uint64_t,std::shared_ptr<Player>> players_;
+private:
+    std::unordered_map<uint64_t, std::shared_ptr<Player>> players_;
 
     std::mutex mutex_;
 };

@@ -315,3 +315,19 @@ Result:
 IO thread now only handles networking
 Business logic runs in worker threads
 
+------------------------------------------------------------
+
+2026-03-12
+
+Introduce PlayerCommandQueue
+
+Motivation:
+prepare for Actor architecture
+
+Changes:
+- PlayerCommandQueue
+- PlayerLogicLoop
+- GachaService push command
+
+Result:
+player logic serialized execution
