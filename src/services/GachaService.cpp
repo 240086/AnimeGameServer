@@ -36,7 +36,15 @@ void GachaService::HandleGacha(Connection *conn, const char *data, size_t len)
         return;
     }
 
-    auto item = GachaSystem::Instance().DrawOnce();
+    const int COST = 160;
+
+    if (!player->GetCurrency().Spend(COST))
+    {
+        LOG_WARN("not enough currency");
+        return;
+    }
+
+    auto item = GachaSystem::Instance().DrawOnce(*player);
 
     player->GetInventory().AddItem(item.id);
 

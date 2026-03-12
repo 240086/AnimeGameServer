@@ -19,3 +19,8 @@ GachaHistory& Player::GetGachaHistory()
 {
     return history_;
 }
+
+Currency& Player::GetCurrency()
+{
+    return currency_;
+}

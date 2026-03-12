@@ -1,24 +1,32 @@
-// F:\VSCode_project\Cpp_Proj\AnimeGameServer\src\game\gacha\GachaPool.cpp
 #include "game/gacha/GachaPool.h"
 #include "common/random/RandomEngine.h"
+#include <stdexcept>
 
 void GachaPool::AddItem(const GachaItem &item)
 {
-    items_.push_back(item);
-    total_weight_ += item.weight;
+    rarity_items_[item.rarity].push_back(item);
+
+    rarity_weight_[item.rarity] += item.weight;
 }
 
-GachaItem GachaPool::Draw()
+GachaItem GachaPool::DrawByRarity(int rarity)
 {
-    if (items_.empty()) {
-        throw("GachaPool empty!!!");
-        return {}; // 或者抛出异常
+    auto it = rarity_items_.find(rarity);
+
+    if (it == rarity_items_.end())
+    {
+        throw std::runtime_error("rarity pool empty");
     }
-    int r = RandomEngine::Instance().RandInt(1, total_weight_);
+
+    auto &items = it->second;
+
+    int totalWeight = rarity_weight_[rarity];
+
+    int r = RandomEngine::Instance().RandInt(1, totalWeight);
 
     int cumulative = 0;
 
-    for (auto &item : items_)
+    for (auto &item : items)
     {
         cumulative += item.weight;
 
@@ -28,5 +36,5 @@ GachaItem GachaPool::Draw()
         }
     }
 
-    return items_.back();
+    return items.back();
 }

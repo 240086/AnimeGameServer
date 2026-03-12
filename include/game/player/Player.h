@@ -4,6 +4,7 @@
 
 #include "game/player/Inventory.h"
 #include "game/player/GachaHistory.h"
+#include "game/player/Currency.h"
 
 class Player
 {
@@ -19,6 +20,8 @@ public:
 
     GachaHistory& GetGachaHistory();
 
+    Currency& GetCurrency();
+
 private:
 
     PlayerId id_;
@@ -26,4 +29,6 @@ private:
     Inventory inventory_;
 
     GachaHistory history_;
+
+    Currency currency_;
 };

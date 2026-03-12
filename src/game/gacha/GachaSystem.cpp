@@ -2,6 +2,8 @@
 #include "network/dispatcher/MessageDispatcher.h"
 #include "network/protocol/MessageId.h"
 #include "common/logger/Logger.h"
+#include "game/gacha/PitySystem.h"
+#include "game/player/Player.h"
 
 GachaSystem::GachaSystem()
 {
@@ -16,7 +18,13 @@ GachaSystem& GachaSystem::Instance()
     return instance;
 }
 
-GachaItem GachaSystem::DrawOnce()
+GachaItem GachaSystem::DrawOnce(Player& player)
 {
-    return pool_.Draw();
+    auto& history = player.GetGachaHistory();
+
+    int rarity = PitySystem::RollRarity(history);
+
+    auto item = pool_.DrawByRarity(rarity);
+
+    return item;
 }

@@ -1,6 +1,8 @@
 #pragma once
-// F:\VSCode_project\Cpp_Proj\AnimeGameServer\include\game\gacha\GachaPool.h
+
 #include <vector>
+#include <unordered_map>
+
 #include "game/gacha/GachaItem.h"
 
 class GachaPool
@@ -9,10 +11,11 @@ public:
 
     void AddItem(const GachaItem& item);
 
-    GachaItem Draw();
+    GachaItem DrawByRarity(int rarity);
 
 private:
 
-    std::vector<GachaItem> items_;
-    int total_weight_ = 0;
+    std::unordered_map<int, std::vector<GachaItem>> rarity_items_;
+
+    std::unordered_map<int, int> rarity_weight_;
 };

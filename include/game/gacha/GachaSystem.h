@@ -3,13 +3,14 @@
 
 #include "game/gacha/GachaPool.h"
 
+class Player;
 class GachaSystem
 {
 public:
 
     static GachaSystem& Instance();
 
-    GachaItem DrawOnce();
+    GachaItem DrawOnce(Player& player);
 
 private:
 

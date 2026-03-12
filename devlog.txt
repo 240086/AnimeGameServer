@@ -207,9 +207,9 @@ Features:
 Architecture update:
 
 Connection
- → PlayerManager
- → Player
- → Game Systems
+→ PlayerManager
+→ Player
+→ Game Systems
 
  ------------------------------------------------------------
 
@@ -230,7 +230,50 @@ Features:
 Architecture:
 
 Client
- → Connection
- → PlayerManager
- → Player
- → Game Systems
+→ Connection
+→ PlayerManager
+→ Player
+→ Game Systems
+
+------------------------------------------------------------
+
+2026-03-12
+
+Gacha pity system implemented
+
+Features:
+- soft pity
+- hard pity
+
+Architecture update:
+
+GachaSystem
+→ PitySystem
+→ PlayerHistory
+
+------------------------------------------------------------
+
+2026-03-12
+
+Gacha pool and atomic currency system implemented
+
+Modules:
+- GachaPool (rarity based)
+- Currency
+
+Features:
+- rarity separated gacha pools
+- lock-free atomic currency operations
+- concurrency-safe gacha workflow
+
+Architecture update:
+
+Player
+ ├─ Currency (atomic)
+ ├─ Inventory
+ └─ GachaHistory
+
+GachaSystem
+→ PitySystem
+→ GachaPool
+
