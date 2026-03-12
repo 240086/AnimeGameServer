@@ -10,6 +10,10 @@ void GachaPool::AddItem(const GachaItem &item)
 
 GachaItem GachaPool::Draw()
 {
+    if (items_.empty()) {
+        throw("GachaPool empty!!!");
+        return {}; // 或者抛出异常
+    }
     int r = RandomEngine::Instance().RandInt(1, total_weight_);
 
     int cumulative = 0;
