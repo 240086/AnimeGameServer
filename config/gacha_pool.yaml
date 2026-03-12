@@ -1,0 +1,20 @@
+pools:
+
+  - pool_id: 1
+    name: standard
+
+    items:
+      - id: 1
+        name: five_star_character
+        rarity: 5
+        weight: 6
+
+      - id: 2
+        name: four_star_character
+        rarity: 4
+        weight: 50
+
+      - id: 3
+        name: three_star_weapon
+        rarity: 3
+        weight: 944

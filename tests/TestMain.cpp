@@ -6,6 +6,7 @@ void TestPlayerGacha();
 void TestPity();
 void TestCurrencyAtomic();
 void TestPitySystem();
+void TestGachaPool();
 
 int main()
 {
@@ -15,8 +16,9 @@ int main()
     // TestPlayer();
     // TestPlayerGacha();
     // TestPity();
-    TestCurrencyAtomic();
-    TestPitySystem();
+    // TestCurrencyAtomic();
+    // TestPitySystem();
+    TestGachaPool();
 
     std::cout<<"Tests finished"<<std::endl;
 

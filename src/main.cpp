@@ -6,6 +6,7 @@
 #include "network/TcpServer.h"
 #include "services/ServiceManager.h"
 #include "common/thread/GlobalThreadPool.h"
+#include "game/gacha/GachaPoolManager.h"
 
 int main()
 {
@@ -21,6 +22,9 @@ int main()
 
     // 初始化服务
     ServiceManager::Instance().InitServices();
+
+    GachaPoolManager::Instance().LoadConfig(
+        Config::Instance().GetConfigDir() + "gacha_pool.yaml");
 
     int port = Config::Instance().GetServerPort();
 

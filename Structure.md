@@ -1,71 +1,97 @@
-﻿AnimeGameServer
+﻿
+```
+AnimeGameServer
+├─ CMakeLists.txt
+├─ config
+│  ├─ gacha_pool.yaml
+│  └─ server.yaml
+├─ include
+│  ├─ common
+│  │  ├─ config
+│  │  │  └─ Config.h
+│  │  ├─ logger
+│  │  │  └─ Logger.h
+│  │  ├─ random
+│  │  │  └─ RandomEngine.h
+│  │  └─ thread
+│  │     ├─ GlobalThreadPool.h
+│  │     └─ ThreadPool.h
+│  ├─ game
+│  │  ├─ gacha
+│  │  │  ├─ GachaItem.h
+│  │  │  ├─ GachaPool.h
+│  │  │  ├─ GachaPoolManager.h
+│  │  │  ├─ GachaSystem.h
+│  │  │  └─ PitySystem.h
+│  │  └─ player
+│  │     ├─ Currency.h
+│  │     ├─ GachaHistory.h
+│  │     ├─ Inventory.h
+│  │     ├─ Player.h
+│  │     └─ PlayerManager.h
+│  ├─ network
+│  │  ├─ buffer
+│  │  │  └─ RecvBuffer.h
+│  │  ├─ Connection.h
+│  │  ├─ dispatcher
+│  │  │  └─ MessageDispatcher.h
+│  │  ├─ manager
+│  │  │  └─ ConnectionManager.h
+│  │  ├─ protocol
+│  │  │  ├─ MessageId.h
+│  │  │  ├─ Packet.h
+│  │  │  └─ PacketParser.h
+│  │  └─ TcpServer.h
+│  └─ services
+│     ├─ BaseService.h
+│     ├─ GachaService.h
+│     ├─ LoginService.h
+│     └─ ServiceManager.h
+├─ README.md
+├─ src
+│  ├─ common
+│  │  ├─ config
+│  │  │  └─ Config.cpp
+│  │  ├─ logger
+│  │  │  └─ Logger.cpp
+│  │  ├─ random
+│  │  │  └─ RandomEngine.cpp
+│  │  └─ thread
+│  │     ├─ GlobalThreadPool.cpp
+│  │     └─ ThreadPool.cpp
+│  ├─ game
+│  │  ├─ gacha
+│  │  │  ├─ GachaPool.cpp
+│  │  │  ├─ GachaPoolManager.cpp
+│  │  │  ├─ GachaSystem.cpp
+│  │  │  └─ PitySystem.cpp
+│  │  └─ player
+│  │     ├─ Currency.cpp
+│  │     ├─ GachaHistory.cpp
+│  │     ├─ Inventory.cpp
+│  │     ├─ Player.cpp
+│  │     └─ PlayerManager.cpp
+│  ├─ main.cpp
+│  ├─ network
+│  │  ├─ buffer
+│  │  │  └─ RecvBuffer.cpp
+│  │  ├─ Connection.cpp
+│  │  ├─ dispatcher
+│  │  │  └─ MessageDispatcher.cpp
+│  │  ├─ manager
+│  │  │  └─ ConnectionManager.cpp
+│  │  ├─ protocol
+│  │  │  ├─ Packet.cpp
+│  │  │  └─ PacketParser.cpp
+│  │  └─ TcpServer.cpp
+│  └─ services
+│     ├─ GachaService.cpp
+│     ├─ LoginService.cpp
+│     └─ ServiceManager.cpp
+├─ Structure.md
+├─ tests
+│  ├─ TestGacha.cpp
+│  └─ TestMain.cpp
+└─ third_party
 
-├── .gitignore
-├── CMakeLists.txt
-├── devlog.txt
-├── README.md
-├── Structure.md
-│
-├── config
-│   └── server.yaml
-│
-├── include
-│
-│   ├── common
-│   │   ├── Config.h
-│   │   ├── Logger.h
-│   │   ├── RandomEngine.h
-│   │   ├── GlobalThreadPool.h
-│   │   └── ThreadPool.h
-│
-│   ├── game
-│   │   └── gacha
-│   │       ├── GachaItem.h
-│   │       ├── GachaPool.h
-│   │       └── GachaSystem.h
-│
-│   ├── network
-│   │   ├── Connection.h
-│   │   ├── TcpServer.h
-│   │   ├── RecvBuffer.h
-│   │   ├── MessageDispatcher.h
-│   │   ├── ConnectionManager.h
-│   │   ├── MessageId.h
-│   │   ├── Packet.h
-│   │   └── PacketParser.h
-│
-│   └── services
-│       ├── BaseService.h
-│       ├── GachaService.h
-│       ├── LoginService.h
-│       └── ServiceManager.h
-│
-├── src
-│
-│   ├── common
-│   │   ├── Config.cpp
-│   │   ├── Logger.cpp
-│   │   ├── RandomEngine.cpp
-│   │   ├── GlobalThreadPool.cpp
-│   │   └── ThreadPool.cpp
-│
-│   ├── game
-│   │   └── gacha
-│   │       ├── GachaPool.cpp
-│   │       └── GachaSystem.cpp
-│
-│   ├── network
-│   │   ├── Connection.cpp
-│   │   ├── TcpServer.cpp
-│   │   ├── RecvBuffer.cpp
-│   │   ├── MessageDispatcher.cpp
-│   │   ├── ConnectionManager.cpp
-│   │   ├── Packet.cpp
-│   │   └── PacketParser.cpp
-│
-│   ├── services
-│   │   ├── GachaService.cpp
-│   │   ├── LoginService.cpp
-│   │   └── ServiceManager.cpp
-│
-└── main.cpp
+```

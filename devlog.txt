@@ -277,3 +277,25 @@ GachaSystem
 → PitySystem
 → GachaPool
 
+------------------------------------------------------------
+
+2026-03-12
+
+Config driven gacha pool system implemented
+
+Modules:
+- GachaPoolManager
+- YAML configuration
+
+Features:
+- gacha pools loaded from config
+- multi pool support
+- runtime configurable drop table
+
+Architecture update:
+
+Config
+→ GachaPoolManager
+→ GachaPool
+→ GachaSystem
+

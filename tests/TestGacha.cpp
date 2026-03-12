@@ -6,6 +6,8 @@
 #include "game/gacha/GachaSystem.h"
 #include "game/player/PlayerManager.h"
 #include "game/player/Currency.h"
+#include "game/gacha/GachaPoolManager.h"
+#include "common/config/Config.h"
 
 // void TestGacha()
 // {
@@ -114,15 +116,34 @@ void TestPitySystem()
 
     int five = 0;
 
-    for(int i=0;i<10000000;i++)
+    for (int i = 0; i < 10000000; i++)
     {
         auto item = GachaSystem::Instance().DrawOnce(*player);
 
-        if(item.rarity == 5)
+        if (item.rarity == 5)
             five++;
     }
 
     std::cout << "5-star count: "
               << five
               << std::endl;
+}
+
+void TestGachaPool()
+{
+    std::cout << 1;
+    GachaPoolManager::Instance().LoadConfig(R"(F:\VSCode_project\Cpp_Proj\AnimeGameServer\config\gacha_pool.yaml)");
+    std::cout << 2;
+    auto &pool =
+        GachaPoolManager::Instance().GetPool(1);
+
+    for (int i = 0; i < 10; i++)
+    {
+        auto item = pool.DrawByRarity(5);
+
+        std::cout
+            << "draw item "
+            << item.name
+            << std::endl;
+    }
 }

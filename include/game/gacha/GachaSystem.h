@@ -19,4 +19,6 @@ private:
 private:
 
     GachaPool pool_;
+
+    int default_pool_id_ = 1;
 };

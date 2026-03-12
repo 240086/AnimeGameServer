@@ -48,3 +48,8 @@ int Config::GetRedisPort() const
 {
     return root["redis"]["port"].as<int>();
 }
+
+std::string Config::GetConfigDir() const
+{
+    return "config/";
+}

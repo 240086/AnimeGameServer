@@ -19,6 +19,8 @@ public:
     std::string GetRedisHost() const;
     int GetRedisPort() const;
 
+    std::string GetConfigDir() const;
+
 private:
     Config() = default;
 
