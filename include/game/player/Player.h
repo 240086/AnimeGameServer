@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <mutex>
 
 #include "game/player/Inventory.h"
 #include "game/player/GachaHistory.h"
@@ -22,6 +23,11 @@ public:
 
     Currency& GetCurrency();
 
+    std::mutex& GetMutex()
+    {
+        return mutex_;
+    }
+
 private:
 
     PlayerId id_;
@@ -31,4 +37,6 @@ private:
     GachaHistory history_;
 
     Currency currency_;
+
+    std::mutex mutex_;
 };

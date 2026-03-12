@@ -299,3 +299,19 @@ Config
 → GachaPool
 → GachaSystem
 
+------------------------------------------------------------
+
+2026-03-12
+
+Network threading upgrade
+
+Added:
+- ThreadPool dispatching in MessageDispatcher
+
+Fix:
+- Dispatcher thread safety with mutex
+
+Result:
+IO thread now only handles networking
+Business logic runs in worker threads
+

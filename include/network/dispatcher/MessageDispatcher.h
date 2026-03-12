@@ -3,6 +3,7 @@
 #include <functional>
 #include <unordered_map>
 #include <cstdint>
+#include <mutex>
 
 class Connection;
 
@@ -21,4 +22,6 @@ public:
 private:
 
     std::unordered_map<uint16_t, MessageHandler> handlers_;
+
+    std::mutex mutex_;
 };

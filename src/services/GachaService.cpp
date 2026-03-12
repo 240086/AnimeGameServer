@@ -37,6 +37,7 @@ void GachaService::HandleGacha(Connection *conn, const char *data, size_t len)
     }
 
     const int COST = 160;
+    std::lock_guard<std::mutex> lock(player->GetMutex());
 
     if (!player->GetCurrency().Spend(COST))
     {

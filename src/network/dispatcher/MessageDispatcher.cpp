@@ -10,20 +10,24 @@ MessageDispatcher &MessageDispatcher::Instance()
 
 void MessageDispatcher::RegisterHandler(uint16_t msgId, MessageHandler handler)
 {
+    std::lock_guard<std::mutex> lock(mutex_);
     handlers_[msgId] = handler;
 }
 
 void MessageDispatcher::Dispatch(uint16_t msgId, Connection *conn, const char *data, size_t len)
 {
-    auto it = handlers_.find(msgId);
+    MessageHandler handler;
 
-    if (it == handlers_.end())
     {
-        LOG_WARN("unknown message {}", msgId);
-        return;
-    }
+        std::lock_guard<std::mutex> lock(mutex_);
 
-    auto handler = it->second;
+        auto it = handlers_.find(msgId);
+
+        if (it == handlers_.end())
+            return;
+
+        handler = it->second;
+    }
 
     GlobalThreadPool::Instance().GetPool().Enqueue(
         [handler, conn, data, len]()
