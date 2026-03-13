@@ -11,22 +11,22 @@ class Connection : public std::enable_shared_from_this<Connection>
 public:
     using tcp = boost::asio::ip::tcp;
 
-    explicit Connection(boost::asio::io_context& ioContext);
+    explicit Connection(boost::asio::io_context &ioContext);
 
-    tcp::socket& GetSocket();
+    tcp::socket &GetSocket();
 
     void Start();
 
-    void HandlePacket(uint16_t msgId, const char* data, size_t len);
+    void HandlePacket(uint16_t msgId, const char *data, size_t len);
 
-    void SetPlayerId(uint64_t id)
+    void SetSessionId(uint64_t id)
     {
-        player_id_ = id;
+        session_id_ = id;
     }
 
-    uint64_t GetPlayerId() const
+    uint64_t GetSessionId() const
     {
-        return player_id_;
+        return session_id_;
     }
 
 private:
@@ -34,13 +34,16 @@ private:
 
 private:
     tcp::socket socket_;
-    enum { BUFFER_SIZE = 1024 };
+    enum
+    {
+        BUFFER_SIZE = 1024
+    };
     char buffer_[BUFFER_SIZE];
-    
+
     RecvBuffer recv_buffer_;
     PacketParser parser_;
 
-    uint64_t player_id_ = 0;
+    uint64_t session_id_ = 0;
 
     std::chrono::steady_clock::time_point last_active_;
 };

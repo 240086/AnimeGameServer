@@ -2,7 +2,7 @@
 #include "common/logger/Logger.h"
 #include "network/dispatcher/MessageDispatcher.h"
 #include "network/manager/ConnectionManager.h"
-#include "game/player/PlayerManager.h"
+#include "network/session/SessionManager.h"
 
 Connection::Connection(boost::asio::io_context &ioContext)
     : socket_(ioContext)
@@ -19,11 +19,11 @@ void Connection::Start()
 {
     last_active_ = std::chrono::steady_clock::now();
 
-    static uint64_t next_player_id = 1;
+    auto session = SessionManager::Instance().CreateSession();
 
-    player_id_ = next_player_id++;
+    session->BindConnection(shared_from_this());
 
-    PlayerManager::Instance().CreatePlayer(player_id_);
+    SetSessionId(session->GetSessionId());
 
     LOG_INFO("client connected");
     DoRead();

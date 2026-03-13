@@ -39,5 +39,6 @@ void PlayerManager::RemovePlayer(uint64_t id)
 const std::unordered_map<uint64_t, std::shared_ptr<Player>> &
 PlayerManager::GetAllPlayers()
 {
+    std::lock_guard<std::mutex> lock(mutex_);
     return players_;
 }
