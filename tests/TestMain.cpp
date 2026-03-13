@@ -1,28 +1,14 @@
+#include <gtest/gtest.h>
 #include <iostream>
 
-// void TestGacha();
-void TestPlayer();
-void TestPlayerGacha();
-void TestPity();
-void TestCurrencyAtomic();
-void TestPitySystem();
-void TestGachaPool();
-void TestGachaSimulation();
-
-int main()
+int main(int argc, char **argv)
 {
-    std::cout<<"Running tests..."<<std::endl;
+    std::cout << "Starting AnimeGameServer Unit Tests..." << std::endl;
 
-    // TestGacha();
-    // TestPlayer();
-    // TestPlayerGacha();
-    // TestPity();
-    // TestCurrencyAtomic();
-    // TestPitySystem();
-    // TestGachaPool();
-    TestGachaSimulation();
+    // 初始化 gtest 环境（解析命令行参数等）
+    testing::InitGoogleTest(&argc, argv);
 
-    std::cout<<"Tests finished"<<std::endl;
-
-    return 0;
+    // 运行所有 TEST() 宏定义的测试用例
+    // 它会自动找到你 TestSession.cpp 里的 SessionTest.BindPlayer
+    return RUN_ALL_TESTS();
 }

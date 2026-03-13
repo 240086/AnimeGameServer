@@ -358,3 +358,85 @@ Benefits:
 - cleaner actor-style architecture
 - improved cache locality
 - consistent player logic serialization
+
+------------------------------------------------------------
+
+2026-03-13
+
+Session system implemented.
+
+New modules:
+- Session
+- SessionManager
+
+Architecture upgrade:
+
+Connection
+ ↓
+Session
+ ↓
+Player
+
+Session responsibilities:
+- manage login state
+- bind player and connection
+- track heartbeat
+
+LoginService updated to create Player only after login.
+
+Benefits:
+- correct login lifecycle
+- support reconnect
+- prevent player creation on raw TCP connect
+- cleaner separation between network and game objects
+
+------------------------------------------------------------
+
+2026-03-13
+
+Service layer refactor after Session introduction.
+
+Problem:
+Services were retrieving Player through Connection::GetPlayerId().
+However Connection no longer owns Player after Session layer was introduced.
+
+Fix:
+Services now retrieve Player through Session.
+
+Connection
+   ↓
+Session
+   ↓
+Player
+
+Additionally removed redundant player mutex usage because
+PlayerCommandQueue already guarantees serialized execution.
+
+Architecture now follows actor-style player logic execution.
+
+------------------------------------------------------------
+
+2026-03-13
+
+Testing architecture:
+
+tests/
+   TestMain.cpp
+   TestGacha.cpp
+
+TestRunner supports command based execution:
+
+TestRunner player
+TestRunner gachaplayer
+TestRunner pity
+TestRunner currency
+TestRunner gachapool
+TestRunner simulation
+
+Test types:
+
+unit tests
+probability simulation
+concurrency tests
+actor system tests
+

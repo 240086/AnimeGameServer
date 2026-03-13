@@ -14,5 +14,5 @@ public:
 
 private:
 
-    std::atomic<int> value_{1000};
+    std::atomic<int> value_{0};
 };

@@ -12,6 +12,8 @@ endif()
 find_package(spdlog REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
+# 1. 查找系统安装的 GTest
+find_package(GTest REQUIRED)
 
 include_directories(include)
 
@@ -32,8 +34,17 @@ target_link_libraries(AnimeGameServerCore
 add_executable(GameServer src/main.cpp)
 target_link_libraries(GameServer PRIVATE AnimeGameServerCore)
 
-add_executable(TestRunner tests/TestMain.cpp tests/TestGacha.cpp)
-target_link_libraries(TestRunner PRIVATE AnimeGameServerCore)
+# 找到所有测试相关的 .cpp 文件
+file(GLOB_RECURSE TEST_FILES CONFIGURE_DEPENDS tests/*.cpp)
+
+add_executable(TestRunner ${TEST_FILES})
+# 2. 将 GTest 链接到测试程序
+target_link_libraries(TestRunner 
+    PRIVATE 
+    AnimeGameServerCore
+    GTest::gtest
+    # GTest::gtest_main
+)
 
 if(WIN32)
     target_link_libraries(GameServer PRIVATE ws2_32 mswsock)

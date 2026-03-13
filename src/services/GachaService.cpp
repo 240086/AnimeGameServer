@@ -4,6 +4,7 @@
 #include "common/logger/Logger.h"
 #include "game/player/PlayerManager.h"
 #include "game/gacha/GachaSystem.h"
+#include "network/session/SessionManager.h"
 
 GachaService &GachaService::Instance()
 {
@@ -26,18 +27,23 @@ void GachaService::HandleGacha(Connection *conn, const char *data, size_t len)
     if (!conn)
         return;
 
-    uint64_t playerId = conn->GetPlayerId();
+    auto session = SessionManager::Instance().GetSession(conn->GetSessionId());
 
-    auto player = PlayerManager::Instance().GetPlayer(playerId);
-
-    if (!player)
+    if (!session)
     {
-        LOG_ERROR("player not found {}", playerId);
+        LOG_ERROR("session not found");
         return;
     }
 
-    const int COST = 160;
-    std::lock_guard<std::mutex> lock(player->GetMutex());
+    auto player = session->GetPlayer();
+
+    if (!player)
+    {
+        LOG_ERROR("player not login");
+        return;
+    }
+
+    uint64_t playerId = player->GetId();
 
     player->GetCommandQueue().Push(
         [player, playerId]()
