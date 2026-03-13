@@ -11,6 +11,7 @@ public:
     static GachaSystem& Instance();
 
     GachaItem DrawOnce(Player& player);
+    std::vector<GachaItem> DrawTen(Player& player);
 
 private:
 

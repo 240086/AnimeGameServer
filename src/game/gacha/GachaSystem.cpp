@@ -5,6 +5,7 @@
 #include "game/gacha/PitySystem.h"
 #include "game/player/Player.h"
 #include "game/gacha/GachaPoolManager.h"
+#include "game/gacha/GachaSystem.h"
 
 GachaSystem::GachaSystem()
 {
@@ -31,4 +32,19 @@ GachaItem GachaSystem::DrawOnce(Player &player)
     auto item = pool.DrawByRarity(rarity);
 
     return item;
+}
+
+std::vector<GachaItem> GachaSystem::DrawTen(Player &player)
+{
+    std::vector<GachaItem> results;
+
+    results.reserve(10);
+
+    for (int i = 0; i < 10; i++)
+    {
+        auto item = DrawOnce(player);
+        results.push_back(item);
+    }
+
+    return results;
 }

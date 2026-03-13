@@ -331,3 +331,30 @@ Changes:
 
 Result:
 player logic serialized execution
+
+------------------------------------------------------------
+
+2026-03-13
+
+Dispatcher architecture improvement.
+
+Problem:
+MessageDispatcher was dispatching handlers through ThreadPool.
+However player logic is already serialized through PlayerCommandQueue.
+
+This resulted in double scheduling:
+
+IO Thread
+ → ThreadPool
+ → PlayerCommandQueue
+
+Fix:
+Dispatcher now directly invokes handlers.
+
+Services are responsible for pushing commands into player queues.
+
+Benefits:
+- reduced scheduling overhead
+- cleaner actor-style architecture
+- improved cache locality
+- consistent player logic serialization

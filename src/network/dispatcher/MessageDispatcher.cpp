@@ -29,9 +29,5 @@ void MessageDispatcher::Dispatch(uint16_t msgId, Connection *conn, const char *d
         handler = it->second;
     }
 
-    GlobalThreadPool::Instance().GetPool().Enqueue(
-        [handler, conn, data, len]()
-        {
-            handler(conn, data, len);
-        });
+    handler(conn, data, len);
 }

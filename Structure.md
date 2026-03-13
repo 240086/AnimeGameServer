@@ -17,6 +17,11 @@ AnimeGameServer
 │  │     ├─ GlobalThreadPool.h
 │  │     └─ ThreadPool.h
 │  ├─ game
+│  │  ├─ actor
+│  │  │  ├─ Actor.h
+│  │  │  ├─ ActorSystem.h
+│  │  │  ├─ Mailbox.h
+│  │  │  └─ PlayerActor.h
 │  │  ├─ gacha
 │  │  │  ├─ GachaItem.h
 │  │  │  ├─ GachaPool.h
@@ -28,6 +33,8 @@ AnimeGameServer
 │  │     ├─ GachaHistory.h
 │  │     ├─ Inventory.h
 │  │     ├─ Player.h
+│  │     ├─ PlayerCommandQueue.h
+│  │     ├─ PlayerLogicLoop.h
 │  │     └─ PlayerManager.h
 │  ├─ network
 │  │  ├─ buffer
@@ -60,6 +67,8 @@ AnimeGameServer
 │  │     ├─ GlobalThreadPool.cpp
 │  │     └─ ThreadPool.cpp
 │  ├─ game
+│  │  ├─ actor
+│  │  │  └─ ActorSystem.cpp
 │  │  ├─ gacha
 │  │  │  ├─ GachaPool.cpp
 │  │  │  ├─ GachaPoolManager.cpp
@@ -70,6 +79,8 @@ AnimeGameServer
 │  │     ├─ GachaHistory.cpp
 │  │     ├─ Inventory.cpp
 │  │     ├─ Player.cpp
+│  │     ├─ PlayerCommandQueue.cpp
+│  │     ├─ PlayerLogicLoop.cpp
 │  │     └─ PlayerManager.cpp
 │  ├─ main.cpp
 │  ├─ network
