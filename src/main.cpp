@@ -99,7 +99,7 @@ int main()
 
     LOG_INFO("Server started at port {}", port);
 
-    TestGachaSimulation();
+    //TestGachaSimulation();
 
     // 事件循环
     ioContext.run();

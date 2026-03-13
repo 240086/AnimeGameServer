@@ -59,7 +59,26 @@ void Connection::DoRead()
             else
             {
                 LOG_WARN("client disconnected");
+                SessionManager::Instance().RemoveSession(session_id_);
                 socket_.close();
+            }
+        });
+}
+
+void Connection::SendPacket(const Packet& packet)
+{
+    auto data = std::make_shared<std::vector<char>>(packet.Serialize());
+
+    auto self = shared_from_this();
+
+    boost::asio::async_write(
+        socket_,
+        boost::asio::buffer(*data),
+        [self, data](boost::system::error_code ec, std::size_t)
+        {
+            if (ec)
+            {
+                self->GetSocket().close();
             }
         });
 }

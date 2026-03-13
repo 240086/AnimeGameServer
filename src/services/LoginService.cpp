@@ -4,6 +4,7 @@
 #include "common/logger/Logger.h"
 #include "network/session/SessionManager.h"
 #include "game/player/PlayerManager.h"
+#include "network/protocol/Packet.h"
 
 LoginService &LoginService::Instance()
 {
@@ -37,9 +38,18 @@ void LoginService::HandleLogin(Connection *conn, const char *data, size_t len)
 
     uint64_t playerId = next_player_id++;
 
-    auto player = PlayerManager::Instance().CreatePlayer(playerId);
+    auto player =
+        PlayerManager::Instance().CreatePlayer(playerId);
 
     session->BindPlayer(player);
+
+    Packet pkt;
+
+    pkt.SetMessageId(MSG_LOGIN);
+
+    pkt.Append((char *)&playerId, sizeof(playerId));
+
+    conn->SendPacket(pkt);
 
     LOG_INFO("player {} login success", playerId);
 }

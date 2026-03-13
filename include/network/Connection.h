@@ -5,6 +5,7 @@
 #include "network/buffer/RecvBuffer.h"
 #include "network/protocol/PacketParser.h"
 #include <chrono>
+#include "protocol/Packet.h"
 
 class Connection : public std::enable_shared_from_this<Connection>
 {
@@ -28,6 +29,8 @@ public:
     {
         return session_id_;
     }
+
+    void SendPacket(const Packet& packet);
 
 private:
     void DoRead();

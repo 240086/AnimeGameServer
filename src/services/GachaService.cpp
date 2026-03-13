@@ -44,9 +44,10 @@ void GachaService::HandleGacha(Connection *conn, const char *data, size_t len)
     }
 
     uint64_t playerId = player->GetId();
+    uint64_t sessionId = conn->GetSessionId();
 
     player->GetCommandQueue().Push(
-        [player, playerId]()
+        [player, playerId, sessionId]()
         {
             const int COST = 160;
 
@@ -61,6 +62,26 @@ void GachaService::HandleGacha(Connection *conn, const char *data, size_t len)
             player->GetInventory().AddItem(item.id);
 
             player->GetGachaHistory().Record(item.rarity);
+
+            Packet pkt;
+
+            pkt.SetMessageId(MSG_GACHA_DRAW);
+
+            pkt.Append((char *)&item.id, sizeof(item.id));
+            pkt.Append((char *)&item.rarity, sizeof(item.rarity));
+
+            auto session =
+                SessionManager::Instance().GetSession(sessionId);
+
+            if (session)
+            {
+                auto conn = session->GetConnection();
+
+                if (conn)
+                {
+                    conn->SendPacket(pkt);
+                }
+            }
 
             LOG_INFO(
                 "player {} draw item {} rarity {}",

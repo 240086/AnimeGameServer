@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cstdint>
 #include <vector>
+#include <cstdint>
 
 struct PacketHeader
 {
@@ -12,17 +12,22 @@ struct PacketHeader
 class Packet
 {
 public:
+
     Packet();
 
     void SetMessageId(uint16_t id);
 
     uint16_t GetMessageId() const;
 
+    void Append(const char* data,size_t len);
+
     const std::vector<char>& GetBuffer() const;
 
-    void Append(const char* data, size_t len);
+    std::vector<char> Serialize() const;
 
 private:
+
     PacketHeader header_;
+
     std::vector<char> buffer_;
 };

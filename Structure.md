@@ -48,6 +48,9 @@ AnimeGameServer
 │  │  │  ├─ MessageId.h
 │  │  │  ├─ Packet.h
 │  │  │  └─ PacketParser.h
+│  │  ├─ session
+│  │  │  ├─ Session.h
+│  │  │  └─ SessionManager.h
 │  │  └─ TcpServer.h
 │  └─ services
 │     ├─ BaseService.h
@@ -94,6 +97,9 @@ AnimeGameServer
 │  │  ├─ protocol
 │  │  │  ├─ Packet.cpp
 │  │  │  └─ PacketParser.cpp
+│  │  ├─ session
+│  │  │  ├─ Session.cpp
+│  │  │  └─ SessionManager.cpp
 │  │  └─ TcpServer.cpp
 │  └─ services
 │     ├─ GachaService.cpp
@@ -102,7 +108,10 @@ AnimeGameServer
 ├─ Structure.md
 ├─ tests
 │  ├─ TestGacha.cpp
-│  └─ TestMain.cpp
+│  ├─ TestMain.cpp
+│  └─ unit
+│     ├─ TestCurrency.cpp
+│     └─ TestSession.cpp
 └─ third_party
 
 ```

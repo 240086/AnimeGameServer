@@ -440,3 +440,26 @@ probability simulation
 concurrency tests
 actor system tests
 
+------------------------------------------------------------
+
+2026-03-13
+
+Network/session system reviewed.
+
+Fixes:
+- Connection disconnect now removes session from SessionManager
+- LoginService now returns login response packet to client
+- Disabled TestGachaSimulation in server startup
+
+System status:
+
+Server now supports:
+- TCP connection
+- Session creation
+- Player login
+- Gacha request
+- Packet response
+
+Next milestone:
+- Implement protocol test client
+- Verify login + gacha workflow
