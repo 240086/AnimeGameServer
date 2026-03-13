@@ -91,6 +91,9 @@ int main()
             // 可选
             // GlobalThreadPool::Instance().Shutdown();
             PlayerLogicLoop::Instance().Stop();
+
+            spdlog::shutdown();
+            
         });
 
     // 启动服务器

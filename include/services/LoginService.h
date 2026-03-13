@@ -3,6 +3,12 @@
 #include "services/BaseService.h"
 #include "network/Connection.h"
 
+struct LoginResponse
+{
+    uint64_t playerId;
+    uint64_t currency;
+};
+
 class LoginService : public BaseService
 {
 public:

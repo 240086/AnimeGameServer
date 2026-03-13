@@ -15,7 +15,7 @@ GachaService &GachaService::Instance()
 void GachaService::Init()
 {
     MessageDispatcher::Instance().RegisterHandler(
-        MSG_GACHA,
+        MSG_C2S_GACHA_DRAW,
         [this](Connection *conn, const char *data, size_t len)
         {
             HandleGacha(conn, data, len);
@@ -63,12 +63,16 @@ void GachaService::HandleGacha(Connection *conn, const char *data, size_t len)
 
             player->GetGachaHistory().Record(item.rarity);
 
+            GachaResponse resp;
+
+            resp.itemId = item.id;
+            resp.rarity = item.rarity;
+
             Packet pkt;
 
-            pkt.SetMessageId(MSG_GACHA_DRAW);
+            pkt.SetMessageId(MSG_S2C_GACHA_DRAW_RESP);
 
-            pkt.Append((char *)&item.id, sizeof(item.id));
-            pkt.Append((char *)&item.rarity, sizeof(item.rarity));
+            pkt.Append((char *)&resp, sizeof(resp));
 
             auto session =
                 SessionManager::Instance().GetSession(sessionId);

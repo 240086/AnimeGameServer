@@ -463,3 +463,47 @@ Server now supports:
 Next milestone:
 - Implement protocol test client
 - Verify login + gacha workflow
+
+------------------------------------------------------------
+
+2026-03-13
+
+Protocol layer finalized (v1).
+
+MessageId updated to support:
+- login response
+- ten draw
+- history query
+
+Server architecture now supports:
+
+TCP networking
+Session system
+Player lifecycle
+Gacha system
+Packet protocol
+
+Next step:
+Implement Python protocol test client to validate
+login + gacha workflow before building UI client.
+
+------------------------------------------------------------
+
+2026-03-13
+
+Protocol v1 refinement
+
+Changes
+- unified messageId naming convention (C2S / S2C)
+- implemented LoginResponse structure
+- implemented GachaResponse structure
+- fixed response message ids
+
+Impact
+- no change to networking core
+- compatible with existing Packet parser
+
+Next
+- upgrade python test client
+- implement gacha history
+- add protocol error handling

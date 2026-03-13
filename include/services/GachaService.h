@@ -4,6 +4,11 @@
 #include "services/BaseService.h"
 #include "network/Connection.h"
 
+struct GachaResponse
+{
+    uint32_t itemId;
+    uint8_t rarity;
+};
 class GachaService : public BaseService
 {
 public:

@@ -15,7 +15,7 @@ LoginService &LoginService::Instance()
 void LoginService::Init()
 {
     MessageDispatcher::Instance().RegisterHandler(
-        MSG_LOGIN,
+        MSG_C2S_LOGIN,
         [this](Connection *conn, const char *data, size_t len)
         {
             HandleLogin(conn, data, len);
@@ -41,15 +41,19 @@ void LoginService::HandleLogin(Connection *conn, const char *data, size_t len)
     auto player =
         PlayerManager::Instance().CreatePlayer(playerId);
 
+    player->GetCurrency().Add(100000);
     session->BindPlayer(player);
 
-    Packet pkt;
+    LoginResponse respData;
 
-    pkt.SetMessageId(MSG_LOGIN);
+    respData.playerId = playerId;
+    respData.currency = player->GetCurrency().Get();
 
-    pkt.Append((char *)&playerId, sizeof(playerId));
+    Packet resp;
 
-    conn->SendPacket(pkt);
+    resp.SetMessageId(MSG_S2C_LOGIN_RESP);
 
-    LOG_INFO("player {} login success", playerId);
+    resp.Append((char *)&respData, sizeof(respData));
+
+    conn->SendPacket(resp);
 }
