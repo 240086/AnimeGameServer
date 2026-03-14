@@ -13,7 +13,7 @@
 #include "network/protocol/generated/gacha.pb.h"
 #include "game/player/Player.h"
 
-GachaService& GachaService::Instance()
+GachaService &GachaService::Instance()
 {
     static GachaService instance;
     return instance;
@@ -23,13 +23,20 @@ void GachaService::Init()
 {
     MessageDispatcher::Instance().RegisterHandler(
         MSG_C2S_GACHA_DRAW,
-        [this](Connection* conn, const char* data, size_t len)
+        [this](Connection *conn, const char *data, size_t len)
         {
             HandleGacha(conn, data, len);
         });
+
+    MessageDispatcher::Instance().RegisterHandler(
+        MSG_C2S_GACHA_DRAW_TEN,
+        [this](Connection *conn, const char *data, size_t len)
+        {
+            HandleGachaTen(conn, data, len);
+        });
 }
 
-void GachaService::HandleGacha(Connection* conn, const char* data, size_t len)
+void GachaService::HandleGacha(Connection *conn, const char *data, size_t len)
 {
     if (!conn)
         return;
@@ -125,5 +132,75 @@ void GachaService::HandleGacha(Connection* conn, const char* data, size_t len)
                 playerId,
                 item.name,
                 item.rarity);
+        });
+}
+
+void GachaService::HandleGachaTen(Connection* conn, const char* data, size_t len)
+{
+    if (!conn)
+        return;
+
+    auto session = SessionManager::Instance().GetSession(conn->GetSessionId());
+
+    if (!session)
+    {
+        LOG_ERROR("session not found");
+        return;
+    }
+
+    auto player = session->GetPlayer();
+
+    if (!player)
+    {
+        LOG_ERROR("player not login");
+        return;
+    }
+
+    uint64_t playerId = player->GetId();
+    uint64_t sessionId = conn->GetSessionId();
+
+    player->GetCommandQueue().Push(
+        [player, playerId, sessionId]()
+        {
+            const int COST = 1600;
+
+            if (!player->GetCurrency().Spend(COST))
+            {
+                LOG_WARN("not enough currency");
+                return;
+            }
+
+            for (int i = 0; i < 10; ++i)
+            {
+                auto item = GachaSystem::Instance().DrawOnce(*player);
+
+                player->GetInventory().AddItem(item.id);
+
+                player->GetGachaHistory().Record(item.rarity);
+
+                anime::GachaDrawResponse resp;
+
+                resp.set_item_id(item.id);
+                resp.set_rarity(item.rarity);
+
+                Packet pkt;
+                pkt.SetMessageId(MSG_S2C_GACHA_DRAW_RESP);
+
+                auto bytes = resp.SerializeAsString();
+                pkt.Append(bytes.data(), bytes.size());
+
+                auto session =
+                    SessionManager::Instance().GetSession(sessionId);
+
+                if (session)
+                {
+                    auto conn = session->GetConnection();
+
+                    if (conn)
+                        conn->SendPacket(pkt);
+                }
+            }
+
+            LOG_INFO("player {} ten draw finished", playerId);
         });
 }

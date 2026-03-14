@@ -18,8 +18,6 @@ public:
 
     void Start();
 
-    void HandlePacket(uint16_t msgId, const char *data, size_t len);
-
     void SetSessionId(uint64_t id)
     {
         session_id_ = id;
@@ -30,16 +28,20 @@ public:
         return session_id_;
     }
 
-    void SendPacket(const Packet& packet);
+    void SendPacket(const Packet &packet);
+
+    void Close();
 
 private:
     void DoRead();
+    void HandlePacket(uint16_t msgId, const char *data, size_t len);
+
 
 private:
     tcp::socket socket_;
     enum
     {
-        BUFFER_SIZE = 1024
+        BUFFER_SIZE = 4096
     };
     char buffer_[BUFFER_SIZE];
 
@@ -47,6 +49,7 @@ private:
     PacketParser parser_;
 
     uint64_t session_id_ = 0;
+    uint64_t connection_id_ = 0;
 
     std::chrono::steady_clock::time_point last_active_;
 };

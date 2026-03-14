@@ -23,9 +23,10 @@ void Connection::Start()
 
     session->BindConnection(shared_from_this());
 
-    SetSessionId(session->GetSessionId());
+    session_id_ = session->GetSessionId();
 
-    LOG_INFO("client connected");
+    LOG_INFO("connection start session={}", session_id_);
+
     DoRead();
 }
 
@@ -37,14 +38,15 @@ void Connection::HandlePacket(uint16_t msgId, const char *data, size_t len)
 void Connection::DoRead()
 {
     auto self(shared_from_this());
-    last_active_ = std::chrono::steady_clock::now();
 
     socket_.async_read_some(
-        boost::asio::buffer(buffer_, BUFFER_SIZE),
+        boost::asio::buffer(buffer_, sizeof(buffer_)),
         [this, self](boost::system::error_code ec, std::size_t length)
         {
             if (!ec)
             {
+                last_active_ = std::chrono::steady_clock::now();
+
                 recv_buffer_.Append(buffer_, length);
 
                 parser_.Parse(
@@ -58,9 +60,9 @@ void Connection::DoRead()
             }
             else
             {
-                LOG_WARN("client disconnected");
-                SessionManager::Instance().RemoveSession(session_id_);
-                socket_.close();
+                LOG_WARN("client disconnected conn={}", connection_id_);
+
+                Close();
             }
         });
 }
@@ -78,7 +80,20 @@ void Connection::SendPacket(const Packet& packet)
         {
             if (ec)
             {
-                self->GetSocket().close();
+                self->Close();
             }
         });
+}
+
+void Connection::Close()
+{
+    SessionManager::Instance().RemoveSession(session_id_);
+
+    ConnectionManager::Instance().RemoveConnection(connection_id_);
+
+    if(socket_.is_open())
+    {
+        boost::system::error_code ec;
+        socket_.close(ec);
+    }
 }

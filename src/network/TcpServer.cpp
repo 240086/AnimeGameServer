@@ -2,6 +2,7 @@
 #include "network/Connection.h"
 #include "common/logger/Logger.h"
 #include "network/manager/ConnectionManager.h"
+#include "network/session/SessionManager.h"
 
 TcpServer::TcpServer(boost::asio::io_context &ioContext, int port)
     : ioContext_(ioContext),
@@ -38,11 +39,12 @@ void TcpServer::DoAccept()
             DoAccept();
         });
 }
+
 void TcpServer::CheckHeartbeat()
 {
     timer_.async_wait([this](const boost::system::error_code&)
     {
-        // TODO: 扫描所有连接
+        SessionManager::Instance().CheckTimeout();
 
         LOG_INFO("heartbeat check running");
 

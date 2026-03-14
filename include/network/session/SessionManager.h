@@ -18,6 +18,8 @@ public:
 
     void RemoveSession(uint64_t id);
 
+    void CheckTimeout();
+
 private:
 
     std::unordered_map<uint64_t, std::shared_ptr<Session>> sessions_;

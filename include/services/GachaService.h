@@ -18,4 +18,5 @@ public:
     void Init() override;
 
     void HandleGacha(Connection* conn, const char* data, size_t len);
+    void HandleGachaTen(Connection* conn, const char* data, size_t len);
 };

@@ -65,7 +65,7 @@ void LoginService::HandleLogin(Connection* conn, const char* data, size_t len)
     auto player =
         PlayerManager::Instance().CreatePlayer(playerId);
 
-    player->GetCurrency().Add(100000);
+    player->GetCurrency().Add(1000000000);
 
     session->BindPlayer(player);
 

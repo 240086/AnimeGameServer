@@ -1,4 +1,5 @@
 #include "network/session/SessionManager.h"
+#include "network/Connection.h"
 
 SessionManager& SessionManager::Instance()
 {
@@ -36,4 +37,35 @@ void SessionManager::RemoveSession(uint64_t id)
     std::lock_guard<std::mutex> lock(mutex_);
 
     sessions_.erase(id);
+}
+
+void SessionManager::CheckTimeout()
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    auto now = std::chrono::steady_clock::now();
+
+    for (auto it = sessions_.begin(); it != sessions_.end(); )
+    {
+        auto session = it->second;
+
+        auto diff = std::chrono::duration_cast<std::chrono::seconds>(
+            now - session->GetLastHeartbeat()).count();
+
+        if (diff > 60)
+        {
+            auto conn = session->GetConnection();
+
+            if (conn)
+            {
+                conn->Close();
+            }
+
+            it = sessions_.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
 }

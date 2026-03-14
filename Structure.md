@@ -46,6 +46,10 @@ AnimeGameServer
 │  │  │  └─ ConnectionManager.h
 │  │  ├─ protocol
 │  │  │  ├─ generated
+│  │  │  │  ├─ gacha.pb.cc
+│  │  │  │  ├─ gacha.pb.h
+│  │  │  │  ├─ login.pb.cc
+│  │  │  │  └─ login.pb.h
 │  │  │  ├─ MessageId.h
 │  │  │  ├─ Packet.h
 │  │  │  ├─ PacketParser.h
