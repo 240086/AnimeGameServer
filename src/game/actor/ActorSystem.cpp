@@ -38,6 +38,8 @@ void ActorSystem::Stop()
 
 void ActorSystem::Schedule(Actor *actor)
 {
+    if (!running_)
+        return;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         ready_queue_.push(actor);

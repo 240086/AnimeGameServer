@@ -88,7 +88,12 @@ void GachaService::HandleGacha(Connection *conn, const char *data, size_t len)
             if (!player->GetCurrency().Spend(COST))
             {
                 LOG_WARN("player {} not enough currency", playerId);
-                // 实际项目中这里应该发一个错误码响应给客户端
+                // 关键：给客户端一个响应，即便是报错
+                Packet errPkt;
+                errPkt.SetMessageId(MSG_S2C_ERROR_INSUFFICIENT_FUNDS); // 9002
+                auto sess = SessionManager::Instance().GetSession(sessionId);
+                if (sess && sess->GetConnection())
+                    sess->GetConnection()->SendPacket(errPkt);
                 return;
             }
 
@@ -161,54 +166,49 @@ void GachaService::HandleGachaTen(Connection *conn, const char *data, size_t len
 
     auto actor = session->GetActor();
 
-    actor->Post(
-        [actor, playerId, sessionId]()
-        {
-            auto player = actor->GetPlayer();
+    actor->Post([actor, playerId, sessionId]()
+                {
+        auto player = actor->GetPlayer();
+        if (!player) return;
 
-            const int COST = 160;
+        // 1. 批量扣费 (160 * 10 = 1600)
+        const int TOTAL_COST = 1600;
+        if (!player->GetCurrency().Spend(TOTAL_COST)) {
+            LOG_WARN("Player {} insufficient currency for 10-draw", playerId);
+            Packet errPkt;
+                errPkt.SetMessageId(MSG_S2C_ERROR_INSUFFICIENT_FUNDS); // 9002
+                auto sess = SessionManager::Instance().GetSession(sessionId);
+                if (sess && sess->GetConnection())
+                    sess->GetConnection()->SendPacket(errPkt);
+            return;
+        }
 
-            if (!player->GetCurrency().Spend(COST))
-            {
-                LOG_WARN("player {} not enough currency", playerId);
-                return;
-            }
+        // 2. 构造批量响应包 (做法 A)
+        anime::GachaDrawTenResponse resp_pb;
 
-            auto item =
-                GachaSystem::Instance().DrawOnce(*player);
-
+        for (int i = 0; i < 10; ++i) {
+            auto item = GachaSystem::Instance().DrawOnce(*player);
             player->GetInventory().AddItem(item.id);
-
             player->GetGachaHistory().Record(item.rarity);
 
-            anime::GachaDrawResponse resp_pb;
+            // 使用 protobuf 的 add_xxx() 获取新成员指针并赋值
+            auto* result = resp_pb.add_results();
+            result->set_item_id(item.id);
+            result->set_rarity(item.rarity);
+        }
 
-            resp_pb.set_item_id(item.id);
-            resp_pb.set_rarity(item.rarity);
-
-            std::string payload;
-
-            if (!resp_pb.SerializeToString(&payload))
-            {
-                LOG_ERROR("serialize failed");
-                return;
-            }
-
+        // 3. 序列化并发送
+        std::string payload;
+        if (resp_pb.SerializeToString(&payload)) {
             Packet pkt;
+            pkt.SetMessageId(MSG_S2C_GACHA_DRAW_TEN_RESP); // 确保 ID 是 1011
+            pkt.Append(payload);
 
-            pkt.SetMessageId(MSG_S2C_GACHA_DRAW_RESP);
+            auto currentSession = SessionManager::Instance().GetSession(sessionId);
+            if (currentSession && currentSession->GetConnection()) {
+                currentSession->GetConnection()->SendPacket(pkt);
+            }
+        }
 
-            pkt.Append(payload.data(), payload.size());
-
-            auto session =
-                SessionManager::Instance().GetSession(sessionId);
-
-            if (!session)
-                return;
-
-            auto conn = session->GetConnection();
-
-            if (conn)
-                conn->SendPacket(pkt);
-        });
+        LOG_INFO("Player {} completed 10-draw successfully", playerId); });
 }

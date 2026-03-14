@@ -33,10 +33,10 @@ AnimeGameServer
 │  │     ├─ GachaHistory.h
 │  │     ├─ Inventory.h
 │  │     ├─ Player.h
-│  │     ├─ PlayerCommandQueue.h
-│  │     ├─ PlayerLogicLoop.h
 │  │     └─ PlayerManager.h
 │  ├─ network
+│  │  ├─ asio
+│  │  │  └─ AsioContextPool.h
 │  │  ├─ buffer
 │  │  │  └─ RecvBuffer.h
 │  │  ├─ Connection.h
@@ -79,6 +79,7 @@ AnimeGameServer
 │  │     └─ ThreadPool.cpp
 │  ├─ game
 │  │  ├─ actor
+│  │  │  ├─ Actor.cpp
 │  │  │  └─ ActorSystem.cpp
 │  │  ├─ gacha
 │  │  │  ├─ GachaPool.cpp
@@ -90,11 +91,11 @@ AnimeGameServer
 │  │     ├─ GachaHistory.cpp
 │  │     ├─ Inventory.cpp
 │  │     ├─ Player.cpp
-│  │     ├─ PlayerCommandQueue.cpp
-│  │     ├─ PlayerLogicLoop.cpp
 │  │     └─ PlayerManager.cpp
 │  ├─ main.cpp
 │  ├─ network
+│  │  ├─ asio
+│  │  │  └─ AsioContextPool.cpp
 │  │  ├─ buffer
 │  │  │  └─ RecvBuffer.cpp
 │  │  ├─ Connection.cpp

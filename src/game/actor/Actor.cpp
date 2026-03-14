@@ -24,6 +24,8 @@ void Actor::Process(int maxTasks)
         task();
         count++;
     }
+
+    SetScheduled(false);
 }
 
 bool Actor::HasMoreTasks()

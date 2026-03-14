@@ -1,7 +1,7 @@
 #include "network/session/SessionManager.h"
 #include "network/Connection.h"
 
-SessionManager& SessionManager::Instance()
+SessionManager &SessionManager::Instance()
 {
     static SessionManager instance;
     return instance;
@@ -9,24 +9,31 @@ SessionManager& SessionManager::Instance()
 
 std::shared_ptr<Session> SessionManager::CreateSession()
 {
-    std::lock_guard<std::mutex> lock(mutex_);
-
     uint64_t id = next_session_id_++;
 
     auto session = std::make_shared<Session>(id);
 
-    sessions_[id] = session;
+    size_t idx = GetBucketIndex(id);
+
+    {
+        std::lock_guard<std::mutex> lock(buckets_[idx].mutex);
+        buckets_[idx].sessions[id] = session;
+    }
 
     return session;
 }
 
 std::shared_ptr<Session> SessionManager::GetSession(uint64_t id)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    size_t idx = GetBucketIndex(id);
 
-    auto it = sessions_.find(id);
+    std::lock_guard<std::mutex> lock(buckets_[idx].mutex);
 
-    if (it != sessions_.end())
+    auto &map = buckets_[idx].sessions;
+
+    auto it = map.find(id);
+
+    if (it != map.end())
         return it->second;
 
     return nullptr;
@@ -34,38 +41,53 @@ std::shared_ptr<Session> SessionManager::GetSession(uint64_t id)
 
 void SessionManager::RemoveSession(uint64_t id)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    size_t idx = GetBucketIndex(id);
 
-    sessions_.erase(id);
+    std::lock_guard<std::mutex> lock(buckets_[idx].mutex);
+
+    buckets_[idx].sessions.erase(id);
 }
 
 void SessionManager::CheckTimeout()
 {
-    std::lock_guard<std::mutex> lock(mutex_);
-
     auto now = std::chrono::steady_clock::now();
 
-    for (auto it = sessions_.begin(); it != sessions_.end(); )
+    std::vector<std::shared_ptr<Session>> to_remove;
+
+    for (size_t i = 0; i < BUCKET_COUNT; ++i)
     {
-        auto session = it->second;
+        std::lock_guard<std::mutex> lock(buckets_[i].mutex);
 
-        auto diff = std::chrono::duration_cast<std::chrono::seconds>(
-            now - session->GetLastHeartbeat()).count();
+        auto &session_map = buckets_[i].sessions;
 
-        if (diff > 60)
+        for (auto it = session_map.begin(); it != session_map.end();)
         {
-            auto conn = session->GetConnection();
+            auto session = it->second;
 
-            if (conn)
+            auto diff = std::chrono::duration_cast<std::chrono::seconds>(
+                            now - session->GetLastHeartbeat())
+                            .count();
+
+            if (diff > 60)
             {
-                conn->Close();
+                to_remove.push_back(session);
+                it = session_map.erase(it);
             }
-
-            it = sessions_.erase(it);
+            else
+            {
+                ++it;
+            }
         }
-        else
+    }
+
+    // 锁外关闭连接
+    for (auto &session : to_remove)
+    {
+        auto conn = session->GetConnection();
+
+        if (conn)
         {
-            ++it;
+            conn->Close();
         }
     }
 }

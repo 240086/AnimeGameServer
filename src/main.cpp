@@ -2,7 +2,6 @@
 #include <thread>
 #include <vector>
 #include <csignal>
-
 #include <boost/asio.hpp>
 
 #include "common/logger/Logger.h"
@@ -24,31 +23,33 @@ int main()
         return -1;
     }
 
-    // 2. 初始化业务系统
+    // 2. 启动逻辑引擎 (重要修复：必须先启动 ActorSystem)
+    // 建议分配 4 个线程处理逻辑，或者根据 CPU 核心数分配
+    ActorSystem::Instance().Start(std::thread::hardware_concurrency()); 
+    LOG_INFO("ActorSystem started with 16 worker threads");
+
+    // 3. 初始化业务系统
     ServiceManager::Instance().InitServices();
     GachaPoolManager::Instance().LoadConfig(
         Config::Instance().GetConfigDir() + "gacha_pool.yaml");
 
     int port = Config::Instance().GetServerPort();
 
-    // 3. 网络基础设施
+    // 4. 网络基础设施
     boost::asio::io_context mainContext;
-    
-    // 信号集：监听退出信号
     boost::asio::signal_set signals(mainContext, SIGINT, SIGTERM);
 
-    AsioContextPool contextPool(
-        std::thread::hardware_concurrency()
-    );
+    // IO 线程池：负责网络读写与 Protobuf 解析
+    AsioContextPool contextPool(std::thread::hardware_concurrency());
 
-    // 4. 创建服务器（以共享指针管理，配合 shared_from_this）
+    // 5. 创建服务器
     auto server = std::make_shared<TcpServer>(
         mainContext,
         contextPool,
         port
     );
 
-    // 5. 注册信号处理逻辑（优雅退出的触发点）
+    // 6. 注册信号处理逻辑（优雅退出）
     signals.async_wait(
         [&](const boost::system::error_code& ec, int signal_number)
         {
@@ -56,27 +57,22 @@ int main()
             {
                 LOG_INFO("Shutdown signal ({}) received. Starting graceful exit...", signal_number);
                 
-                // A. 停止接受新连接
-                // server 内部应提供 Stop 接口调用 acceptor_.close()
+                // 停止顺序：先断开连接 -> 停逻辑 -> 停网络池
                 server->Stop(); 
-
-                // B. 停止业务逻辑处理
                 ActorSystem::Instance().Stop();
-
-                // C. 停止 IO 上下文
                 contextPool.Stop();
                 mainContext.stop();
             }
         });
 
-    // 6. 启动服务
+    // 7. 启动网络监听
     server->StartAccept();
     LOG_INFO("AnimeGameServer started at port {}", port);
 
-    // 启动线程池
+    // 启动 IO 线程池
     contextPool.Run();
 
-    // 主线程阻塞在这里，处理信号和 Accept 事件
+    // 主线程阻塞，驱动 Main Reactor (Acceptor & Signals)
     mainContext.run();
 
     LOG_INFO("Server exited cleanly.");
