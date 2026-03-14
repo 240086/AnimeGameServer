@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package anime;
+
+message HeartbeatRequest
+{
+}
+
+message HeartbeatResponse
+{
+    int64 server_time = 1;
+}

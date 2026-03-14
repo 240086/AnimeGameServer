@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include <memory>
 #include <mutex>
+#include <functional>
 
 #include "game/player/Player.h"
 
@@ -17,7 +18,9 @@ public:
 
     void RemovePlayer(uint64_t id);
 
-    const std::unordered_map<uint64_t, std::shared_ptr<Player>> &GetAllPlayers();
+    std::vector<std::shared_ptr<Player>> GetAllPlayers();
+
+    void ForEachPlayer(std::function<void(const std::shared_ptr<Player> &)> func);
 
 private:
     std::unordered_map<uint64_t, std::shared_ptr<Player>> players_;

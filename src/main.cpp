@@ -11,6 +11,8 @@
 #include "game/gacha/GachaPoolManager.h"
 #include "game/actor/ActorSystem.h"
 #include "network/asio/AsioContextPool.h"
+#include <boost/asio/steady_timer.hpp>
+#include "network/session/SessionManager.h"
 
 int main()
 {
@@ -25,7 +27,7 @@ int main()
 
     // 2. 启动逻辑引擎 (重要修复：必须先启动 ActorSystem)
     // 建议分配 4 个线程处理逻辑，或者根据 CPU 核心数分配
-    ActorSystem::Instance().Start(std::thread::hardware_concurrency()); 
+    ActorSystem::Instance().Start(std::thread::hardware_concurrency());
     LOG_INFO("ActorSystem started with 16 worker threads");
 
     // 3. 初始化业务系统
@@ -46,24 +48,46 @@ int main()
     auto server = std::make_shared<TcpServer>(
         mainContext,
         contextPool,
-        port
-    );
+        port);
 
     // 6. 注册信号处理逻辑（优雅退出）
     signals.async_wait(
-        [&](const boost::system::error_code& ec, int signal_number)
+        [&](const boost::system::error_code &ec, int signal_number)
         {
             if (!ec)
             {
                 LOG_INFO("Shutdown signal ({}) received. Starting graceful exit...", signal_number);
-                
+
                 // 停止顺序：先断开连接 -> 停逻辑 -> 停网络池
-                server->Stop(); 
+                server->Stop();
                 ActorSystem::Instance().Stop();
                 contextPool.Stop();
                 mainContext.stop();
             }
         });
+
+    // --- 新增：注册全局心跳超时检查定时器 ---
+    std::shared_ptr<boost::asio::steady_timer> timeoutTimer =
+        std::make_shared<boost::asio::steady_timer>(mainContext, std::chrono::seconds(30));
+
+    // 定义定时器回调函数（Lambda）
+    std::function<void(const boost::system::error_code &)> timerHandler;
+    timerHandler = [&](const boost::system::error_code &ec)
+    {
+        if (!ec)
+        {
+            LOG_INFO("Running periodic session timeout check...");
+            SessionManager::Instance().CheckTimeout();
+
+            // 重新设置定时器，实现循环
+            timeoutTimer->expires_after(std::chrono::seconds(30));
+            timeoutTimer->async_wait(timerHandler);
+        }
+    };
+
+    // 启动第一次等待
+    timeoutTimer->async_wait(timerHandler);
+    // ------------------------------------
 
     // 7. 启动网络监听
     server->StartAccept();

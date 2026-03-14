@@ -35,10 +35,24 @@ void PlayerManager::RemovePlayer(uint64_t id)
 
     players_.erase(id);
 }
+std::vector<std::shared_ptr<Player>> PlayerManager::GetAllPlayers()
+{
+    std::vector<std::shared_ptr<Player>> result;
 
-const std::unordered_map<uint64_t, std::shared_ptr<Player>> &
-PlayerManager::GetAllPlayers()
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        for (auto &p : players_)
+            result.push_back(p.second);
+    }
+
+    return result;
+}
+void PlayerManager::ForEachPlayer(std::function<void(const std::shared_ptr<Player> &)> func)
 {
     std::lock_guard<std::mutex> lock(mutex_);
-    return players_;
+    for (auto &pair : players_)
+    {
+        func(pair.second);
+    }
 }
