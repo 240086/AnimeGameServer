@@ -1,55 +1,92 @@
 #include "network/TcpServer.h"
+
 #include "network/Connection.h"
-#include "common/logger/Logger.h"
 #include "network/manager/ConnectionManager.h"
 #include "network/session/SessionManager.h"
+#include "common/logger/Logger.h"
 
-TcpServer::TcpServer(boost::asio::io_context &ioContext, int port)
-    : ioContext_(ioContext),
-      acceptor_(ioContext, tcp::endpoint(tcp::v4(), port)),
-      timer_(ioContext, std::chrono::seconds(30))
+TcpServer::TcpServer(
+    boost::asio::io_context& mainContext,
+    AsioContextPool& contextPool,
+    int port
+)
+: mainContext_(mainContext),
+  contextPool_(contextPool),
+  acceptor_(
+      mainContext,
+      tcp::endpoint(tcp::v4(), port)
+  ),
+  timer_(mainContext, std::chrono::seconds(30))
 {
-    CheckHeartbeat();
 }
 
 void TcpServer::StartAccept()
 {
+    CheckHeartbeat();
     DoAccept();
 }
 
 void TcpServer::DoAccept()
 {
-    auto connection = std::make_shared<Connection>(ioContext_);
+    auto self = shared_from_this();
+
+    // 选择一个 IO 线程
+    auto& ioContext = contextPool_.GetIOContext();
+
+    auto connection =
+        std::make_shared<Connection>(ioContext);
 
     acceptor_.async_accept(
         connection->GetSocket(),
-        [this, connection](boost::system::error_code ec)
+        [self, connection](boost::system::error_code ec)
         {
             if (!ec)
             {
-                int id = ConnectionManager::Instance().AddConnection(connection);
+                int id =
+                    ConnectionManager::Instance()
+                        .AddConnection(connection);
 
-                LOG_INFO("client connected id={} online={}",
-                         id,
-                         ConnectionManager::Instance().OnlineCount());
+                LOG_INFO(
+                    "client connected id={} online={}",
+                    id,
+                    ConnectionManager::Instance().OnlineCount()
+                );
 
                 connection->Start();
             }
+            else
+            {
+                LOG_ERROR("accept error {}", ec.message());
+            }
 
-            DoAccept();
+            self->DoAccept();
         });
 }
 
 void TcpServer::CheckHeartbeat()
 {
-    timer_.async_wait([this](const boost::system::error_code&)
-    {
-        SessionManager::Instance().CheckTimeout();
+    auto self = shared_from_this();
 
-        LOG_INFO("heartbeat check running");
+    timer_.async_wait(
+        [self](const boost::system::error_code& ec)
+        {
+            if (ec)
+                return;
 
-        timer_.expires_after(std::chrono::seconds(30));
+            SessionManager::Instance().CheckTimeout();
 
-        CheckHeartbeat();
-    });
+            LOG_INFO("heartbeat check running");
+
+            self->timer_.expires_after(
+                std::chrono::seconds(30));
+
+            self->CheckHeartbeat();
+        });
+}
+
+void TcpServer::Stop() {
+    boost::system::error_code ec;
+    acceptor_.close(ec); // 停止监听
+    timer_.cancel();   // 停止心跳检测
+    LOG_INFO("TcpServer listener closed.");
 }

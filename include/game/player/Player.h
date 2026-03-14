@@ -6,7 +6,6 @@
 #include "game/player/Inventory.h"
 #include "game/player/GachaHistory.h"
 #include "game/player/Currency.h"
-#include "game/player/PlayerCommandQueue.h"
 
 class Player
 {
@@ -23,16 +22,6 @@ public:
 
     Currency &GetCurrency();
 
-    std::mutex &GetMutex()
-    {
-        return mutex_;
-    }
-
-    PlayerCommandQueue &GetCommandQueue()
-    {
-        return commandQueue_;
-    }
-
 private:
     PlayerId id_;
 
@@ -42,7 +31,4 @@ private:
 
     Currency currency_;
 
-    std::mutex mutex_;
-
-    PlayerCommandQueue commandQueue_;
 };

@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <chrono>
+#include "game/actor/PlayerActor.h"
 
 class Connection;
 class Player;
@@ -9,7 +10,6 @@ class Player;
 class Session
 {
 public:
-
     explicit Session(uint64_t sessionId);
 
     uint64_t GetSessionId() const;
@@ -26,8 +26,17 @@ public:
 
     std::chrono::steady_clock::time_point GetLastHeartbeat() const;
 
-private:
+    void BindActor(std::shared_ptr<PlayerActor> actor)
+    {
+        actor_ = actor;
+    }
 
+    std::shared_ptr<PlayerActor> GetActor()
+    {
+        return actor_;
+    }
+
+private:
     uint64_t session_id_;
 
     std::shared_ptr<Connection> connection_;
@@ -35,4 +44,6 @@ private:
     std::shared_ptr<Player> player_;
 
     std::chrono::steady_clock::time_point last_heartbeat_;
+
+    std::shared_ptr<PlayerActor> actor_;
 };

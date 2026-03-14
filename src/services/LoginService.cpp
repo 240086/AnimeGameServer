@@ -11,7 +11,7 @@
 
 #include "network/protocol/generated/login.pb.h"
 
-LoginService& LoginService::Instance()
+LoginService &LoginService::Instance()
 {
     static LoginService instance;
     return instance;
@@ -21,13 +21,13 @@ void LoginService::Init()
 {
     MessageDispatcher::Instance().RegisterHandler(
         MSG_C2S_LOGIN,
-        [this](Connection* conn, const char* data, size_t len)
+        [this](Connection *conn, const char *data, size_t len)
         {
             HandleLogin(conn, data, len);
         });
 }
 
-void LoginService::HandleLogin(Connection* conn, const char* data, size_t len)
+void LoginService::HandleLogin(Connection *conn, const char *data, size_t len)
 {
     LOG_INFO("login request received size={}", len);
 
@@ -67,7 +67,10 @@ void LoginService::HandleLogin(Connection* conn, const char* data, size_t len)
 
     player->GetCurrency().Add(1000000000);
 
+    auto actor = std::make_shared<PlayerActor>(player);
+
     session->BindPlayer(player);
+    session->BindActor(actor);
 
     /* ---------- 构造 protobuf 响应 ---------- */
 

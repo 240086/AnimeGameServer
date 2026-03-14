@@ -2,21 +2,22 @@
 
 #include "game/actor/Actor.h"
 #include "game/player/Player.h"
+#include <memory>
 
 class PlayerActor : public Actor
 {
 public:
 
-    PlayerActor(uint64_t id)
-        : player_(id)
+    explicit PlayerActor(std::shared_ptr<Player> player)
+        : player_(player)
     {}
 
-    Player& GetPlayer()
+    std::shared_ptr<Player> GetPlayer()
     {
         return player_;
     }
 
 private:
 
-    Player player_;
+    std::shared_ptr<Player> player_;
 };

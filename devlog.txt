@@ -529,3 +529,58 @@ SessionManager
 
 - prevent socket double close
 - fix connection memory leak
+
+------------------------------------------------------------
+
+2026-03-14
+
+[Actor System Upgrade]
+
+Old:
+Polling based actor system scanning all actors
+
+New:
+Event-driven actor scheduling
+
+Features:
+- ready_queue actor dispatch
+- CAS based schedule control
+- worker thread condition variable wakeup
+- batch task processing
+
+Benefits:
+- eliminate CPU waste
+- improve cache locality
+- guarantee actor single thread execution
+- improve fairness
+
+------------------------------------------------------------
+
+2026-03-14
+
+[Actor Architecture Upgrade]
+
+- Introduced PlayerActor
+- Player logic migrated to actor model
+- IO thread only handles networking
+- Game logic executed in ActorSystem workers
+
+Benefits:
+- thread safety
+- no mutex in player logic
+- scalable architecture
+
+------------------------------------------------------------
+
+2026-03-14
+
+[Server Architecture Upgrade]
+
+Added:
+- ActorSystem startup
+- Logic thread pool
+- Multi-thread io_context
+
+Improvement:
+- network and logic decoupled
+- scalable thread architecture

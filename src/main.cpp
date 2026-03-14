@@ -1,111 +1,84 @@
 #include <iostream>
+#include <thread>
+#include <vector>
+#include <csignal>
+
 #include <boost/asio.hpp>
 
 #include "common/logger/Logger.h"
 #include "common/config/Config.h"
 #include "network/TcpServer.h"
 #include "services/ServiceManager.h"
-#include "common/thread/GlobalThreadPool.h"
 #include "game/gacha/GachaPoolManager.h"
-#include "game/player/PlayerLogicLoop.h"
-#include "game/player/PlayerManager.h"
-#include "game/gacha/GachaSystem.h"
-
-void TestGachaSimulation()
-{
-    std::cout << "=== Gacha Simulation Test ===" << std::endl;
-
-    // load config
-    GachaPoolManager::Instance().LoadConfig(
-        Config::Instance().GetConfigDir() + "gacha_pool.yaml");
-
-    // start logic loop
-    // PlayerLogicLoop::Instance().Start();
-
-    // create player
-    auto player = PlayerManager::Instance().CreatePlayer(1);
-
-    player->GetCurrency().Add(100000);
-
-    const int TEST_DRAWS = 1000;
-
-    for (int i = 0; i < TEST_DRAWS; i++)
-    {
-        player->GetCommandQueue().Push([player]()
-                                       {
-            const int COST = 160;
-
-            if(!player->GetCurrency().Spend(COST))
-                return;
-
-            auto item =
-                GachaSystem::Instance().DrawOnce(*player);
-
-            player->GetInventory().AddItem(item.id);
-
-            player->GetGachaHistory().Record(item.rarity); });
-    }
-
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-
-    auto items = player->GetInventory().GetItems();
-
-    std::cout << "Total items: " << items.size() << std::endl;
-
-    // PlayerLogicLoop::Instance().Stop();
-}
+#include "game/actor/ActorSystem.h"
+#include "network/asio/AsioContextPool.h"
 
 int main()
 {
-    // 初始化日志
+    // 1. 初始化基础组件
     Logger::Init();
 
-    // 加载配置
     if (!Config::Instance().Load("config/server.yaml"))
     {
         LOG_ERROR("load config failed");
         return -1;
     }
 
-    // 初始化服务
+    // 2. 初始化业务系统
     ServiceManager::Instance().InitServices();
-
     GachaPoolManager::Instance().LoadConfig(
         Config::Instance().GetConfigDir() + "gacha_pool.yaml");
 
     int port = Config::Instance().GetServerPort();
 
-    PlayerLogicLoop::Instance().Start();
+    // 3. 网络基础设施
+    boost::asio::io_context mainContext;
+    
+    // 信号集：监听退出信号
+    boost::asio::signal_set signals(mainContext, SIGINT, SIGTERM);
 
-    boost::asio::io_context ioContext;
+    AsioContextPool contextPool(
+        std::thread::hardware_concurrency()
+    );
 
-    // 信号处理
-    boost::asio::signal_set signals(ioContext, SIGINT, SIGTERM);
+    // 4. 创建服务器（以共享指针管理，配合 shared_from_this）
+    auto server = std::make_shared<TcpServer>(
+        mainContext,
+        contextPool,
+        port
+    );
+
+    // 5. 注册信号处理逻辑（优雅退出的触发点）
     signals.async_wait(
-        [&](const boost::system::error_code &, int signal_number)
+        [&](const boost::system::error_code& ec, int signal_number)
         {
-            LOG_INFO("Capture signal {}, server shutting down...", signal_number);
+            if (!ec)
+            {
+                LOG_INFO("Shutdown signal ({}) received. Starting graceful exit...", signal_number);
+                
+                // A. 停止接受新连接
+                // server 内部应提供 Stop 接口调用 acceptor_.close()
+                server->Stop(); 
 
-            ioContext.stop();
+                // B. 停止业务逻辑处理
+                ActorSystem::Instance().Stop();
 
-            // 可选
-            // GlobalThreadPool::Instance().Shutdown();
-            PlayerLogicLoop::Instance().Stop();
-
-            spdlog::shutdown();
-            
+                // C. 停止 IO 上下文
+                contextPool.Stop();
+                mainContext.stop();
+            }
         });
 
-    // 启动服务器
-    TcpServer server(ioContext, port);
-    server.StartAccept();
+    // 6. 启动服务
+    server->StartAccept();
+    LOG_INFO("AnimeGameServer started at port {}", port);
 
-    LOG_INFO("Server started at port {}", port);
+    // 启动线程池
+    contextPool.Run();
 
-    //TestGachaSimulation();
+    // 主线程阻塞在这里，处理信号和 Accept 事件
+    mainContext.run();
 
-    // 事件循环
-    ioContext.run();
-
+    LOG_INFO("Server exited cleanly.");
     return 0;
 }
