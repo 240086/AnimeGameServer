@@ -45,9 +45,13 @@ AnimeGameServer
 │  │  ├─ manager
 │  │  │  └─ ConnectionManager.h
 │  │  ├─ protocol
+│  │  │  ├─ generated
 │  │  │  ├─ MessageId.h
 │  │  │  ├─ Packet.h
-│  │  │  └─ PacketParser.h
+│  │  │  ├─ PacketParser.h
+│  │  │  └─ proto
+│  │  │     ├─ gacha.proto
+│  │  │     └─ login.proto
 │  │  ├─ session
 │  │  │  ├─ Session.h
 │  │  │  └─ SessionManager.h

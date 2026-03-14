@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <cstdint>
+#include <string>
 
 struct PacketHeader
 {
@@ -20,6 +21,8 @@ public:
     uint16_t GetMessageId() const;
 
     void Append(const char* data,size_t len);
+
+    void Append(const std::string& s);
 
     const std::vector<char>& GetBuffer() const;
 

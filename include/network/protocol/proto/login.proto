@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package anime;
+
+message LoginRequest
+{
+}
+
+message LoginResponse
+{
+  uint64 player_id = 1;
+  uint64 currency = 2;
+}

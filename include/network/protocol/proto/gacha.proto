@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package anime;
+
+message GachaDrawRequest
+{
+  
+}
+
+message GachaDrawResponse
+{
+  uint32 item_id = 1;
+  uint32 rarity = 2;
+}

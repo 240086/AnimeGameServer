@@ -1,6 +1,7 @@
 #include "network/protocol/Packet.h"
 #include <cstring>
 #include <boost/asio/detail/socket_ops.hpp>
+#include "network/protocol/Packet.h"
 
 namespace socket_ops = boost::asio::detail::socket_ops;
 
@@ -28,7 +29,11 @@ void Packet::Append(const char* data,size_t len)
     header_.length = buffer_.size();
 }
 
-const std::vector<char>& Packet::GetBuffer() const
+void Packet::Append(const std::string &s)
+{
+    Append(s.data(), s.size());
+}
+const std::vector<char> &Packet::GetBuffer() const
 {
     return buffer_;
 }
