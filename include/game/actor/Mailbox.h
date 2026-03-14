@@ -29,6 +29,12 @@ public:
         return true;
     }
 
+    size_t Size()
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return queue_.size();
+    }
+
 private:
 
     std::queue<Task> queue_;

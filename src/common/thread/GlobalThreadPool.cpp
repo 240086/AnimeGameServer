@@ -1,7 +1,7 @@
 #include "common/thread/GlobalThreadPool.h"
 
 GlobalThreadPool::GlobalThreadPool()
-    : pool_(4) // 逻辑线程数量
+    : pool_(std::thread::hardware_concurrency()) // 逻辑线程数量
 {
 }
 

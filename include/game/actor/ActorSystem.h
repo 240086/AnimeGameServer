@@ -2,9 +2,11 @@
 
 #include <vector>
 #include <thread>
-#include <atomic>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
 
-#include "game/actor/PlayerActor.h"
+class Actor;
 
 class ActorSystem
 {
@@ -12,9 +14,11 @@ public:
 
     static ActorSystem& Instance();
 
-    void Start(int threads = 4);
+    void Start(int threads);
 
-    void Register(PlayerActor* actor);
+    void Stop();
+
+    void Schedule(Actor* actor);
 
 private:
 
@@ -22,9 +26,13 @@ private:
 
 private:
 
-    std::vector<PlayerActor*> actors_;
-
     std::vector<std::thread> workers_;
 
-    std::atomic<bool> running_{false};
+    std::queue<Actor*> ready_queue_;
+
+    std::mutex mutex_;
+
+    std::condition_variable cond_;
+
+    bool running_ = false;
 };

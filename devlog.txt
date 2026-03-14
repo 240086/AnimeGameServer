@@ -507,3 +507,25 @@ Next
 - upgrade python test client
 - implement gacha history
 - add protocol error handling
+
+------------------------------------------------------------
+
+2026-03-14
+
+[UPDATE]
+
+Connection
+- add connection_id
+- add Close() lifecycle management
+
+TcpServer
+- set connection id
+- heartbeat timer scan session timeout
+
+SessionManager
+- add CheckTimeout()
+
+[FIX]
+
+- prevent socket double close
+- fix connection memory leak
