@@ -22,7 +22,7 @@ TcpServer::TcpServer(
 
 void TcpServer::StartAccept()
 {
-    CheckHeartbeat();
+    // CheckHeartbeat();
     DoAccept();
 }
 
@@ -52,6 +52,8 @@ void TcpServer::DoAccept()
                     ConnectionManager::Instance().OnlineCount()
                 );
 
+
+                connection->SetConnectionId(id);
                 connection->Start();
             }
             else
@@ -63,26 +65,26 @@ void TcpServer::DoAccept()
         });
 }
 
-void TcpServer::CheckHeartbeat()
-{
-    auto self = shared_from_this();
+// void TcpServer::CheckHeartbeat()
+// {
+//     auto self = shared_from_this();
 
-    timer_.async_wait(
-        [self](const boost::system::error_code& ec)
-        {
-            if (ec)
-                return;
+//     timer_.async_wait(
+//         [self](const boost::system::error_code& ec)
+//         {
+//             if (ec)
+//                 return;
 
-            SessionManager::Instance().CheckTimeout();
+//             SessionManager::Instance().CheckTimeout();
 
-            LOG_INFO("heartbeat check running");
+//             LOG_INFO("heartbeat check running");
 
-            self->timer_.expires_after(
-                std::chrono::seconds(30));
+//             self->timer_.expires_after(
+//                 std::chrono::seconds(30));
 
-            self->CheckHeartbeat();
-        });
-}
+//             self->CheckHeartbeat();
+//         });
+// }
 
 void TcpServer::Stop() {
     boost::system::error_code ec;

@@ -26,7 +26,7 @@ private:
 
     SessionManager() = default;
 
-    static constexpr size_t BUCKET_COUNT = 16;
+    static constexpr size_t BUCKET_COUNT = 64;
 
     struct Bucket
     {

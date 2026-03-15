@@ -29,5 +29,11 @@ void MessageDispatcher::Dispatch(uint16_t msgId, Connection *conn, const char *d
         handler = it->second;
     }
 
-    handler(conn, data, len);
+    std::string payload(data, len);
+
+    GlobalThreadPool::Instance().GetPool().Enqueue(
+        [handler, conn, payload]()
+        {
+            handler(conn, payload.data(), payload.size());
+        });
 }

@@ -3,27 +3,38 @@
 #include <unordered_map>
 #include <memory>
 #include <mutex>
+#include <vector>
 #include <functional>
 
-#include "game/player/Player.h"
+class Player;
 
-class PlayerManager
-{
+class PlayerManager {
 public:
-    static PlayerManager &Instance();
+    static PlayerManager& Instance();
 
-    std::shared_ptr<Player> CreatePlayer(uint64_t id);
+    // 基础增删改查
+    void AddPlayer(std::shared_ptr<Player> player);
+    std::shared_ptr<Player> GetPlayer(uint64_t uid);
+    void RemovePlayer(uint64_t uid);
 
-    std::shared_ptr<Player> GetPlayer(uint64_t id);
-
-    void RemovePlayer(uint64_t id);
-
-    std::vector<std::shared_ptr<Player>> GetAllPlayers();
-
-    void ForEachPlayer(std::function<void(const std::shared_ptr<Player> &)> func);
+    // 统计与批量操作
+    size_t OnlineCount();
+    
+    // 安全遍历：采用分桶遍历，减小锁粒度
+    void ForEachPlayer(std::function<void(const std::shared_ptr<Player>&)> func);
 
 private:
-    std::unordered_map<uint64_t, std::shared_ptr<Player>> players_;
+    PlayerManager() = default;
 
-    std::mutex mutex_;
+    // 使用 64 个桶，支撑万级并发
+    static constexpr size_t BUCKET_COUNT = 64;
+
+    struct Bucket {
+        std::mutex mutex;
+        std::unordered_map<uint64_t, std::shared_ptr<Player>> players;
+    };
+
+    Bucket buckets_[BUCKET_COUNT];
+
+    size_t GetBucketIndex(uint64_t id) const { return id % BUCKET_COUNT; }
 };

@@ -48,6 +48,8 @@ AnimeGameServer
 │  │  │  ├─ generated
 │  │  │  │  ├─ gacha.pb.cc
 │  │  │  │  ├─ gacha.pb.h
+│  │  │  │  ├─ heartbeat.pb.cc
+│  │  │  │  ├─ heartbeat.pb.h
 │  │  │  │  ├─ login.pb.cc
 │  │  │  │  └─ login.pb.h
 │  │  │  ├─ MessageId.h
@@ -55,6 +57,7 @@ AnimeGameServer
 │  │  │  ├─ PacketParser.h
 │  │  │  └─ proto
 │  │  │     ├─ gacha.proto
+│  │  │     ├─ heartbeat.proto
 │  │  │     └─ login.proto
 │  │  ├─ session
 │  │  │  ├─ Session.h
@@ -63,6 +66,7 @@ AnimeGameServer
 │  └─ services
 │     ├─ BaseService.h
 │     ├─ GachaService.h
+│     ├─ HeartbeatService.h
 │     ├─ LoginService.h
 │     └─ ServiceManager.h
 ├─ README.md
@@ -112,6 +116,7 @@ AnimeGameServer
 │  │  └─ TcpServer.cpp
 │  └─ services
 │     ├─ GachaService.cpp
+│     ├─ HeartbeatService.cpp
 │     ├─ LoginService.cpp
 │     └─ ServiceManager.cpp
 ├─ Structure.md

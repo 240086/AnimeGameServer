@@ -3,14 +3,14 @@
 #include <unordered_map>
 #include <memory>
 #include <mutex>
+#include <atomic>
 
 class Connection;
 
 class ConnectionManager
 {
 public:
-
-    static ConnectionManager& Instance();
+    static ConnectionManager &Instance();
 
     int AddConnection(std::shared_ptr<Connection> conn);
 
@@ -21,14 +21,12 @@ public:
     size_t OnlineCount();
 
 private:
-
     ConnectionManager() = default;
 
 private:
-
     std::unordered_map<int, std::shared_ptr<Connection>> connections_;
 
     std::mutex mutex_;
 
-    int next_id_ = 1;
+    std::atomic<int> next_id_{1};
 };

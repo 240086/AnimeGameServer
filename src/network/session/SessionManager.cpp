@@ -43,9 +43,28 @@ void SessionManager::RemoveSession(uint64_t id)
 {
     size_t idx = GetBucketIndex(id);
 
-    std::lock_guard<std::mutex> lock(buckets_[idx].mutex);
+    std::shared_ptr<Session> session;
 
-    buckets_[idx].sessions.erase(id);
+    {
+        std::lock_guard<std::mutex> lock(buckets_[idx].mutex);
+
+        auto &map = buckets_[idx].sessions;
+
+        auto it = map.find(id);
+
+        if (it == map.end())
+            return;
+
+        session = it->second;
+
+        map.erase(it);
+    }
+
+    if (session)
+    {
+        session->UnbindActor();
+        session->UnbindPlayer();
+    }
 }
 
 void SessionManager::CheckTimeout()
@@ -71,10 +90,6 @@ void SessionManager::CheckTimeout()
             if (diff > 60)
             {
                 to_remove.push_back(session);
-                it = session_map.erase(it);
-            }
-            else
-            {
                 ++it;
             }
         }

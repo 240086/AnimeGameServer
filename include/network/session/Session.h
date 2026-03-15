@@ -36,10 +36,20 @@ public:
         return actor_;
     }
 
+    void UnbindPlayer()
+    {
+        player_.reset();
+    }
+
+    void UnbindActor()
+    {
+        actor_.reset();
+    }
+
 private:
     uint64_t session_id_;
 
-    std::shared_ptr<Connection> connection_;
+    std::weak_ptr<Connection> connection_;
 
     std::shared_ptr<Player> player_;
 

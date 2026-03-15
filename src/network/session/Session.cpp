@@ -30,7 +30,7 @@ std::shared_ptr<Player> Session::GetPlayer()
 
 std::shared_ptr<Connection> Session::GetConnection()
 {
-    return connection_;
+    return connection_.lock();
 }
 
 void Session::UpdateHeartbeat()

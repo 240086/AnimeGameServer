@@ -22,7 +22,7 @@ public:
 private:
     void DoAccept();
 
-    void CheckHeartbeat();
+    // void CheckHeartbeat();
 
 private:
     boost::asio::io_context &mainContext_;

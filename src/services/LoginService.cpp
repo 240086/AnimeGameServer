@@ -32,73 +32,76 @@ void LoginService::HandleLogin(Connection *conn, const char *data, size_t len)
     LOG_INFO("login request received size={}", len);
 
     if (!conn)
-    {
-        LOG_ERROR("connection null");
         return;
-    }
 
-    auto session =
-        SessionManager::Instance().GetSession(conn->GetSessionId());
-
+    // 1. 获取 Session（确保连接合法）
+    auto session = SessionManager::Instance().GetSession(conn->GetSessionId());
     if (!session)
     {
-        LOG_ERROR("session not found");
+        LOG_ERROR("session not found for sessionId={}", conn->GetSessionId());
         return;
     }
 
-    /* ---------- 解析 protobuf 请求 ---------- */
-
+    // 2. 解析 Protobuf 请求
     anime::LoginRequest request;
-
     if (!request.ParseFromArray(data, (int)len))
     {
         LOG_ERROR("LoginRequest parse failed");
         return;
     }
 
-    /* ---------- 创建玩家 ---------- */
-
+    // 3. 确定玩家 ID
+    // 专业提示：实际项目中这里应该是根据 request.token() 或 username 从数据库/Auth服务查询 UID
     static std::atomic<uint64_t> next_player_id{1};
-
     uint64_t playerId = next_player_id++;
 
-    auto player =
-        PlayerManager::Instance().CreatePlayer(playerId);
+    /* ---------- 专业逻辑开始：顶号检查 (Kick Old Connection) ---------- */
+    // 如果该 UID 已经在线，需要先踢掉旧的连接
+    auto oldPlayer = PlayerManager::Instance().GetPlayer(playerId);
+    if (oldPlayer)
+    {
+        LOG_WARN("Player {} already login, kicking old one...", playerId);
+        // 在实际架构中，这里会触发 oldPlayer->GetSession()->GetConnection()->Close()
+    }
 
-    player->GetCurrency().Add(1000000000);
+    /* ---------- 修复点：手动创建并添加玩家 ---------- */
+    // 4. 创建玩家对象 (不在 Manager 内部创建)
+    auto player = std::make_shared<Player>(playerId);
 
+    // 5. 创建对应的 Actor 执行体
     auto actor = std::make_shared<PlayerActor>(player);
 
+    // 6. 将玩家加入全局管理器（此时玩家正式“在线”）
+    PlayerManager::Instance().AddPlayer(player);
+
+    // 7. 绑定 Session 引用链
     session->BindPlayer(player);
     session->BindActor(actor);
 
-    /* ---------- 构造 protobuf 响应 ---------- */
+    /* ---------- 逻辑 Actor 化：所有状态修改必须在 Post 内 ---------- */
+    // 8. 投递初始化任务
+    actor->Post([conn, player, playerId]()
+                {
+        // 重要：初次登录的奖励、属性计算等逻辑应在 Actor 线程执行，确保线程安全
+        player->GetCurrency().Add(1000000000); 
 
-    anime::LoginResponse resp_pb;
+        anime::LoginResponse resp_pb;
+        resp_pb.set_player_id(playerId);
+        resp_pb.set_currency(player->GetCurrency().Get());
 
-    resp_pb.set_player_id(playerId);
-    resp_pb.set_currency(player->GetCurrency().Get());
+        std::string payload;
+        if (!resp_pb.SerializeToString(&payload)) {
+            LOG_ERROR("LoginResponse serialize failed");
+            return;
+        }
 
-    std::string payload;
+        Packet packet;
+        packet.SetMessageId(MSG_S2C_LOGIN_RESP);
+        packet.Append(payload.data(), payload.size());
 
-    if (!resp_pb.SerializeToString(&payload))
-    {
-        LOG_ERROR("LoginResponse serialize failed");
-        return;
-    }
+        // 发送响应
+        conn->SendPacket(packet);
 
-    /* ---------- 发送 Packet ---------- */
-
-    Packet packet;
-
-    packet.SetMessageId(MSG_S2C_LOGIN_RESP);
-
-    packet.Append(payload.data(), payload.size());
-
-    conn->SendPacket(packet);
-
-    LOG_INFO(
-        "player {} login success currency {}",
-        playerId,
-        player->GetCurrency().Get());
+        LOG_INFO("Player {} login success. Currency: {}", 
+                 playerId, player->GetCurrency().Get()); });
 }

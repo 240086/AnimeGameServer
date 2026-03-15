@@ -30,12 +30,16 @@ public:
 
     void SendPacket(const Packet &packet);
 
+    void SetConnectionId(uint64_t id)
+    {
+        connection_id_ = id;
+    }
+
     void Close();
 
 private:
     void DoRead();
     void HandlePacket(uint16_t msgId, const char *data, size_t len);
-
 
 private:
     tcp::socket socket_;
@@ -52,4 +56,6 @@ private:
     uint64_t connection_id_ = 0;
 
     std::chrono::steady_clock::time_point last_active_;
+
+    std::atomic<bool> closed_{false};
 };

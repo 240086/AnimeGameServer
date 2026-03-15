@@ -166,6 +166,12 @@ void GachaService::HandleGachaTen(Connection *conn, const char *data, size_t len
 
     auto actor = session->GetActor();
 
+    if (!actor)
+    {
+        LOG_ERROR("actor not bound");
+        return;
+    }
+
     actor->Post([actor, playerId, sessionId]()
                 {
         auto player = actor->GetPlayer();

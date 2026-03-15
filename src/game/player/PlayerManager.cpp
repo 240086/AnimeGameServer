@@ -1,4 +1,5 @@
 #include "game/player/PlayerManager.h"
+#include "game/player/Player.h"
 
 PlayerManager &PlayerManager::Instance()
 {
@@ -6,53 +7,64 @@ PlayerManager &PlayerManager::Instance()
     return instance;
 }
 
-std::shared_ptr<Player> PlayerManager::CreatePlayer(uint64_t id)
+void PlayerManager::AddPlayer(std::shared_ptr<Player> player)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    if (!player)
+        return;
+    uint64_t uid = player->GetId();
+    size_t idx = GetBucketIndex(uid);
 
-    auto player = std::make_shared<Player>(id);
-
-    players_[id] = player;
-
-    return player;
+    std::lock_guard<std::mutex> lock(buckets_[idx].mutex);
+    buckets_[idx].players[uid] = player;
 }
 
-std::shared_ptr<Player> PlayerManager::GetPlayer(uint64_t id)
+std::shared_ptr<Player> PlayerManager::GetPlayer(uint64_t uid)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    size_t idx = GetBucketIndex(uid);
+    std::lock_guard<std::mutex> lock(buckets_[idx].mutex);
 
-    auto it = players_.find(id);
-
-    if (it != players_.end())
-        return it->second;
-
-    return nullptr;
+    auto &map = buckets_[idx].players;
+    auto it = map.find(uid);
+    return (it != map.end()) ? it->second : nullptr;
 }
 
-void PlayerManager::RemovePlayer(uint64_t id)
+void PlayerManager::RemovePlayer(uint64_t uid)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    players_.erase(id);
+    size_t idx = GetBucketIndex(uid);
+    std::lock_guard<std::mutex> lock(buckets_[idx].mutex);
+    buckets_[idx].players.erase(uid);
 }
-std::vector<std::shared_ptr<Player>> PlayerManager::GetAllPlayers()
-{
-    std::vector<std::shared_ptr<Player>> result;
 
+size_t PlayerManager::OnlineCount()
+{
+    size_t count = 0;
+    for (size_t i = 0; i < BUCKET_COUNT; ++i)
     {
-        std::lock_guard<std::mutex> lock(mutex_);
-
-        for (auto &p : players_)
-            result.push_back(p.second);
+        std::lock_guard<std::mutex> lock(buckets_[i].mutex);
+        count += buckets_[i].players.size();
     }
-
-    return result;
+    return count;
 }
-void PlayerManager::ForEachPlayer(std::function<void(const std::shared_ptr<Player> &)> func)
+
+void PlayerManager::ForEachPlayer(
+    std::function<void(const std::shared_ptr<Player> &)> func)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
-    for (auto &pair : players_)
+    for (size_t i = 0; i < BUCKET_COUNT; ++i)
     {
-        func(pair.second);
+        std::vector<std::shared_ptr<Player>> players;
+
+        {
+            std::lock_guard<std::mutex> lock(buckets_[i].mutex);
+
+            for (auto &pair : buckets_[i].players)
+            {
+                players.push_back(pair.second);
+            }
+        }
+
+        for (auto &p : players)
+        {
+            func(p);
+        }
     }
 }

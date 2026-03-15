@@ -67,7 +67,7 @@ void Connection::DoRead()
         });
 }
 
-void Connection::SendPacket(const Packet& packet)
+void Connection::SendPacket(const Packet &packet)
 {
     auto data = std::make_shared<std::vector<char>>(packet.Serialize());
 
@@ -87,11 +87,13 @@ void Connection::SendPacket(const Packet& packet)
 
 void Connection::Close()
 {
+    if (closed_.exchange(true))
+        return;
     SessionManager::Instance().RemoveSession(session_id_);
 
     ConnectionManager::Instance().RemoveConnection(connection_id_);
 
-    if(socket_.is_open())
+    if (socket_.is_open())
     {
         boost::system::error_code ec;
         socket_.close(ec);
