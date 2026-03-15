@@ -11,24 +11,21 @@ class Actor;
 class ActorSystem
 {
 public:
-
-    static ActorSystem& Instance();
+    static ActorSystem &Instance();
 
     void Start(int threads);
 
     void Stop();
 
-    void Schedule(Actor* actor);
+    void Schedule(std::shared_ptr<Actor> actor);
 
 private:
-
     void Worker();
 
 private:
-
     std::vector<std::thread> workers_;
 
-    std::queue<Actor*> ready_queue_;
+    std::queue<std::shared_ptr<Actor>> ready_queue_;
 
     std::mutex mutex_;
 

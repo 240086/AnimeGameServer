@@ -36,57 +36,58 @@ void ActorSystem::Stop()
     workers_.clear();
 }
 
-void ActorSystem::Schedule(Actor *actor)
+void ActorSystem::Schedule(std::shared_ptr<Actor> actor)
 {
-    if (!running_)
+    if (!running_ || !actor)
         return;
+
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        ready_queue_.push(actor);
+        ready_queue_.push(std::move(actor));
     }
-
     cond_.notify_one();
 }
 
 void ActorSystem::Worker()
 {
-    while (running_)
+    while (true)
     {
-        Actor *actor = nullptr;
+        std::shared_ptr<Actor> actor = nullptr;
 
         {
             std::unique_lock<std::mutex> lock(mutex_);
-
             cond_.wait(lock, [this]
                        { return !running_ || !ready_queue_.empty(); });
 
-            // 【核心修改】
-            // 如果系统停止运行且队列已空，此时才真正退出线程
+            // 停机且队列空，才退出
             if (!running_ && ready_queue_.empty())
-            {
                 return;
-            }
 
-            // 如果队列不为空，无论 running_ 是什么状态，都得继续拿任务
             if (!ready_queue_.empty())
             {
-                actor = ready_queue_.front();
+                actor = std::move(ready_queue_.front());
                 ready_queue_.pop();
             }
         }
 
         if (actor)
         {
+            // 核心逻辑：单次处理
             actor->Process();
 
+            // 检查是否需要继续调度
+            // 此时不需要在这里 SetScheduled(false)，
+            // 因为 Actor 内部的 TrySchedule 应该是原子的
             if (actor->HasMoreTasks())
             {
                 Schedule(actor);
             }
             else
             {
+                // 只有在确定没任务时，才交出调度权
                 actor->SetScheduled(false);
 
+                // Double Check：防止在 SetScheduled(false) 的瞬间有新任务进入
                 if (actor->HasMoreTasks() && actor->TrySchedule())
                 {
                     Schedule(actor);

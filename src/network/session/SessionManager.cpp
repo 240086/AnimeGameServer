@@ -1,5 +1,7 @@
 #include "network/session/SessionManager.h"
 #include "network/Connection.h"
+#include "game/player/PlayerManager.h"
+#include "common/logger/Logger.h"
 
 SessionManager &SessionManager::Instance()
 {
@@ -61,7 +63,16 @@ void SessionManager::RemoveSession(uint64_t id)
     }
 
     if (session)
-    {
+    { // 1. 先通过 Session 拿到关联的 Player
+        auto player = session->GetPlayer();
+        if (player)
+        {
+            // 2. 同步清理 PlayerManager，打破 shared_ptr 计数
+            PlayerManager::Instance().RemovePlayer(player->GetId());
+            LOG_INFO("Player {} removed from Manager due to Session {} closure", player->GetId(), id);
+        }
+
+        // 3. 执行解绑，彻底清理 Session 内部持有的 Actor 引用
         session->UnbindActor();
         session->UnbindPlayer();
     }

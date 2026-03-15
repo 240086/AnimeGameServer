@@ -6,13 +6,21 @@
 #include "network/protocol/PacketParser.h"
 #include <chrono>
 #include "protocol/Packet.h"
+#include <deque>
 
 class Connection : public std::enable_shared_from_this<Connection>
 {
 public:
     using tcp = boost::asio::ip::tcp;
+    // 使用 io_context::executor_type 的 strand
+    using strand_type = boost::asio::strand<boost::asio::io_context::executor_type>;
 
-    explicit Connection(boost::asio::io_context &ioContext);
+    explicit Connection(boost::asio::io_context &ioContext)
+        : socket_(ioContext),
+          // 初始化 strand，绑定到 io_context
+          strand_(boost::asio::make_strand(ioContext))
+    {
+    }
 
     tcp::socket &GetSocket();
 
@@ -38,11 +46,14 @@ public:
     void Close();
 
 private:
+    void DoWrite();
     void DoRead();
     void HandlePacket(uint16_t msgId, const char *data, size_t len);
 
 private:
     tcp::socket socket_;
+    strand_type strand_; // 引入 strand 替代 mutex
+
     enum
     {
         BUFFER_SIZE = 4096
@@ -58,4 +69,6 @@ private:
     std::chrono::steady_clock::time_point last_active_;
 
     std::atomic<bool> closed_{false};
+
+    std::deque<std::shared_ptr<std::vector<char>>> write_queue_;
 };
