@@ -9,43 +9,46 @@ if(POLICY CMP0167)
     cmake_policy(SET CMP0167 NEW)
 endif()
 
+# --- 1. 查找依赖 ---
 find_package(spdlog REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
-# 1. 查找系统安装的 GTest
 find_package(GTest REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(absl REQUIRED CONFIG)
 find_package(PkgConfig REQUIRED)
 
+# 使用 PkgConfig 查找 Protobuf, MySQL (MariaDB) 和 Redis (hiredis)
 pkg_check_modules(PROTOBUF REQUIRED protobuf)
+pkg_check_modules(MARIADB REQUIRED libmariadb)
+pkg_check_modules(HIREDIS REQUIRED hiredis) # <--- 新增：查找 hiredis 库
 
+# --- 2. Protobuf 配置 ---
 set(PROTO_DIR "include/network/protocol/proto")
 set(PROTO_FILES 
     "${PROTO_DIR}/login.proto"
     "${PROTO_DIR}/gacha.proto"
 )
-
-# 3. 自动生成代码
-# PROTO_SRCS 会包含生成的 .pb.cc，PROTO_HDRS 会包含 .pb.h
-# 生成的文件默认会存放在 build 目录下的相应子目录中
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
 
+# --- 3. 包含目录 ---
 include_directories(include)
-
 include_directories(${PROTOBUF_INCLUDE_DIRS})
-link_directories(${PROTOBUF_LIBRARY_DIRS})
+include_directories(${MARIADB_INCLUDE_DIRS})
+include_directories(${HIREDIS_INCLUDE_DIRS}) # <--- 新增：包含 Redis 头文件路径
 
-# 使用 CONFIGURE_DEPENDS 自动感知新文件
+# --- 4. 源文件管理 ---
 file(GLOB_RECURSE SRC_FILES CONFIGURE_DEPENDS src/*.cpp)
-# 排除 main.cpp
 list(REMOVE_ITEM SRC_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
 
+# --- 5. 构建核心库 ---
 add_library(AnimeGameServerCore ${SRC_FILES} ${PROTO_SRCS} ${PROTO_HDRS})
 
 target_include_directories(AnimeGameServerCore PUBLIC 
     ${CMAKE_CURRENT_BINARY_DIR}
-    ${PROTOBUF_INCLUDE_DIRS} # 确保 PkgConfig 的头文件路径包含进来
+    ${PROTOBUF_INCLUDE_DIRS}
+    ${MARIADB_INCLUDE_DIRS}
+    ${HIREDIS_INCLUDE_DIRS} # <--- 新增
 )
 
 target_link_libraries(AnimeGameServerCore
@@ -54,37 +57,44 @@ target_link_libraries(AnimeGameServerCore
     yaml-cpp::yaml-cpp
     Boost::system
     ${Protobuf_LIBRARIES}
-    
+    ${MARIADB_LIBRARIES}
+    ${HIREDIS_LIBRARIES}    # <--- 新增：链接 hiredis 库
 )
 
+# --- 6. 构建主程序 ---
 add_executable(GameServer src/main.cpp)
 target_link_libraries(GameServer 
     PRIVATE 
     AnimeGameServerCore
-    ${PROTOBUF_LIBRARIES} # 这里的重复链接是为了确保符号表在最终可执行文件中被正确解析
+    ${PROTOBUF_LIBRARIES}
+    ${MARIADB_LIBRARIES}
+    ${HIREDIS_LIBRARIES}    # <--- 新增
 )
 
-# 找到所有测试相关的 .cpp 文件
+# --- 7. 测试程序 ---
 file(GLOB_RECURSE TEST_FILES CONFIGURE_DEPENDS tests/*.cpp)
-
 add_executable(TestRunner ${TEST_FILES})
-# 2. 将 GTest 链接到测试程序
 target_link_libraries(TestRunner 
     PRIVATE 
     AnimeGameServerCore
     GTest::gtest
-    # GTest::gtest_main
     ${PROTOBUF_LIBRARIES}
+    ${MARIADB_LIBRARIES}
+    ${HIREDIS_LIBRARIES}    # <--- 新增
 )
 
+# --- 8. 平台相关配置 ---
 if(WIN32)
     target_link_libraries(GameServer PRIVATE ws2_32 mswsock)
     target_link_libraries(TestRunner PRIVATE ws2_32 mswsock)
     target_compile_definitions(GameServer PRIVATE _WIN32_WINNT=0x0601)
     target_compile_definitions(TestRunner PRIVATE _WIN32_WINNT=0x0601)
+    
+    # 针对 Windows 下 hiredis 的特殊宏定义，防止符号导出/兼容性问题
+    target_compile_definitions(AnimeGameServerCore PUBLIC HIREDIS_WIN)
 endif()
 
-# 每次编译都确保 config 是最新的
+# --- 9. 资源拷贝 ---
 add_custom_command(TARGET AnimeGameServerCore POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_CURRENT_SOURCE_DIR}/config ${CMAKE_CURRENT_BINARY_DIR}/config

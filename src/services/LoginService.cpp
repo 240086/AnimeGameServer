@@ -80,10 +80,19 @@ void LoginService::HandleLogin(Connection *conn, const char *data, size_t len)
 
     /* ---------- 逻辑 Actor 化：所有状态修改必须在 Post 内 ---------- */
     // 8. 投递初始化任务
-    actor->Post([conn, player, playerId]()
+
+    auto weakConn = conn->weak_from_this();
+    actor->Post([weakConn, player, playerId]()
                 {
         // 重要：初次登录的奖励、属性计算等逻辑应在 Actor 线程执行，确保线程安全
         player->GetCurrency().Add(1000000000); 
+
+        auto connPtr = weakConn.lock();
+        if (!connPtr)
+        {
+            LOG_WARN("Login response aborted: Connection lost for player {}", playerId);
+            return; 
+        }
 
         anime::LoginResponse resp_pb;
         resp_pb.set_player_id(playerId);
@@ -100,7 +109,7 @@ void LoginService::HandleLogin(Connection *conn, const char *data, size_t len)
         packet.Append(payload.data(), payload.size());
 
         // 发送响应
-        conn->SendPacket(packet);
+        connPtr->SendPacket(packet);
 
         LOG_INFO("Player {} login success. Currency: {}", 
                  playerId, player->GetCurrency().Get()); });
