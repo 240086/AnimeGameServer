@@ -16,6 +16,15 @@ AnimeGameServer
 │  │  └─ thread
 │  │     ├─ GlobalThreadPool.h
 │  │     └─ ThreadPool.h
+│  ├─ database
+│  │  ├─ mysql
+│  │  │  ├─ MySQLConnection.h
+│  │  │  └─ MySQLConnectionPool.h
+│  │  ├─ redis
+│  │  │  └─ RedisClient.h
+│  │  └─ repository
+│  │     ├─ AccountRepository.h
+│  │     └─ PlayerRepository.h
 │  ├─ game
 │  │  ├─ actor
 │  │  │  ├─ Actor.h
@@ -81,6 +90,15 @@ AnimeGameServer
 │  │  └─ thread
 │  │     ├─ GlobalThreadPool.cpp
 │  │     └─ ThreadPool.cpp
+│  ├─ database
+│  │  ├─ mysql
+│  │  │  ├─ MySQLConnection.cpp
+│  │  │  └─ MySQLConnectionPool.cpp
+│  │  ├─ redis
+│  │  │  └─ RedisClient.cpp
+│  │  └─ repository
+│  │     ├─ AccountRepository.cpp
+│  │     └─ PlayerRepository.cpp
 │  ├─ game
 │  │  ├─ actor
 │  │  │  ├─ Actor.cpp
@@ -121,11 +139,9 @@ AnimeGameServer
 │     └─ ServiceManager.cpp
 ├─ Structure.md
 ├─ tests
-│  ├─ TestGacha.cpp
 │  ├─ TestMain.cpp
 │  └─ unit
-│     ├─ TestCurrency.cpp
-│     └─ TestSession.cpp
+│     └─ TestCurrency.cpp
 └─ third_party
 
 ```

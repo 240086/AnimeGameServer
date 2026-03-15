@@ -2,6 +2,8 @@
 
 #include <mysql/mysql.h>
 #include <string>
+#include "database/mysql/MySQLResult.h"
+#include <memory>
 
 class MySQLConnection
 {
@@ -20,7 +22,7 @@ public:
 
     bool Execute(const std::string& sql);
 
-    MYSQL_RES* Query(const std::string& sql);
+    std::unique_ptr<MySQLResult> Query(const std::string& sql);
 
 private:
     MYSQL* conn_;

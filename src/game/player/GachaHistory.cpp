@@ -4,7 +4,6 @@ static constexpr size_t MAX_HISTORY = 1000;
 
 void GachaHistory::Record(int rarity)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
 
     history_.push_back(rarity);
     if (history_.size() > MAX_HISTORY)
@@ -15,7 +14,6 @@ void GachaHistory::Record(int rarity)
 
 int GachaHistory::SinceLastFiveStar() const
 {
-    std::lock_guard<std::mutex> lock(mutex_);
 
     int count = 0;
 

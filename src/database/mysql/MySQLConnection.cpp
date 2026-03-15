@@ -39,10 +39,15 @@ bool MySQLConnection::Execute(const std::string &sql)
     return mysql_query(conn_, sql.c_str()) == 0;
 }
 
-MYSQL_RES *MySQLConnection::Query(const std::string &sql)
+std::unique_ptr<MySQLResult> MySQLConnection::Query(const std::string &sql)
 {
     if (mysql_query(conn_, sql.c_str()) != 0)
         return nullptr;
 
-    return mysql_store_result(conn_);
+    MYSQL_RES *res = mysql_store_result(conn_);
+
+    if (!res)
+        return nullptr;
+
+    return std::make_unique<MySQLResult>(res);
 }

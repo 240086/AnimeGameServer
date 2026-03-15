@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <mutex>
 
 #include "game/player/Inventory.h"
 #include "game/player/GachaHistory.h"

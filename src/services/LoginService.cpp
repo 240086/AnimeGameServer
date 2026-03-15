@@ -10,6 +10,7 @@
 #include "common/logger/Logger.h"
 
 #include "network/protocol/generated/login.pb.h"
+#include "database/player/PlayerLoader.h"
 
 LoginService &LoginService::Instance()
 {
@@ -68,6 +69,13 @@ void LoginService::HandleLogin(Connection *conn, const char *data, size_t len)
     // 4. 创建玩家对象 (不在 Manager 内部创建)
     auto player = std::make_shared<Player>(playerId);
 
+    // 从数据库加载
+    if (!PlayerLoader::Load(playerId, *player))
+    {
+        LOG_ERROR("Load player failed {}", playerId);
+        return;
+    }
+
     // 5. 创建对应的 Actor 执行体
     auto actor = std::make_shared<PlayerActor>(player);
 
@@ -85,7 +93,7 @@ void LoginService::HandleLogin(Connection *conn, const char *data, size_t len)
     actor->Post([weakConn, player, playerId]()
                 {
         // 重要：初次登录的奖励、属性计算等逻辑应在 Actor 线程执行，确保线程安全
-        player->GetCurrency().Add(1000000000); 
+        player->GetCurrency().Set(1000000000); 
 
         auto connPtr = weakConn.lock();
         if (!connPtr)

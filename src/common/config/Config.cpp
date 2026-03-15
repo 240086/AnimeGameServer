@@ -1,12 +1,12 @@
 #include "common/config/Config.h"
 
-Config& Config::Instance()
+Config &Config::Instance()
 {
     static Config instance;
     return instance;
 }
 
-bool Config::Load(const std::string& file)
+bool Config::Load(const std::string &file)
 {
     try
     {
@@ -37,6 +37,26 @@ std::string Config::GetMysqlHost() const
 int Config::GetMysqlPort() const
 {
     return root["database"]["mysql_port"].as<int>();
+}
+
+std::string Config::GetMysqlUser() const
+{
+    return root["database"]["mysql_user"].as<std::string>("root");
+}
+
+std::string Config::GetMysqlPassword() const
+{
+    return root["database"]["mysql_pwd"].as<std::string>("");
+}
+
+std::string Config::GetMysqlDatabase() const
+{
+    return root["database"]["mysql_db"].as<std::string>("anime_game");
+}
+
+int Config::GetMysqlPoolSize() const
+{
+    return root["database"]["mysql_pool_size"].as<int>(10);
 }
 
 std::string Config::GetRedisHost() const

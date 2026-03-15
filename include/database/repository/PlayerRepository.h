@@ -6,9 +6,11 @@
 class PlayerRepository
 {
 public:
-    static PlayerRepository& Instance();
+    static std::shared_ptr<Player> LoadPlayer(Player::PlayerId playerId);
 
-    std::shared_ptr<Player> LoadPlayer(uint64_t playerId);
+    static bool SaveInventory(Player &player);
 
-    bool SavePlayer(const Player& player);
+    static bool SaveCurrency(const Player &player);
+
+    static bool InsertGachaRecord(Player::PlayerId playerId, int itemId, int rarity);
 };

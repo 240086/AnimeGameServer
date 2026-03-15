@@ -21,7 +21,7 @@ bool MySQLConnectionPool::Init(
         if (!conn->Connect(host, port, user, password, db))
             return false;
 
-        pool_.push(conn);
+        pool_.push(std::move(conn));
     }
 
     return true;
@@ -36,6 +36,8 @@ std::shared_ptr<MySQLConnection> MySQLConnectionPool::Acquire()
 
     auto conn = std::move(pool_.front());
     pool_.pop();
+
+    mysql_ping(conn->Get());
 
     return std::shared_ptr<MySQLConnection>(
         conn.release(),

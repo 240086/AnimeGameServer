@@ -1,7 +1,6 @@
 #pragma once
 
 #include <vector>
-#include <mutex>
 
 class GachaHistory
 {
@@ -15,5 +14,4 @@ private:
 
     std::vector<int> history_;
 
-    mutable std::mutex mutex_;
 };

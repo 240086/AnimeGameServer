@@ -10,21 +10,19 @@
 class MySQLConnectionPool
 {
 public:
-
-    static MySQLConnectionPool& Instance();
+    static MySQLConnectionPool &Instance();
 
     bool Init(
-        const std::string& host,
+        const std::string &host,
         int port,
-        const std::string& user,
-        const std::string& password,
-        const std::string& db,
+        const std::string &user,
+        const std::string &password,
+        const std::string &db,
         size_t poolSize);
 
     std::shared_ptr<MySQLConnection> Acquire();
 
 private:
-
     std::queue<std::unique_ptr<MySQLConnection>> pool_;
 
     std::mutex mutex_;

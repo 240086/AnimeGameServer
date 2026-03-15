@@ -13,6 +13,7 @@
 #include "network/asio/AsioContextPool.h"
 #include <boost/asio/steady_timer.hpp>
 #include "network/session/SessionManager.h"
+#include "database/mysql/MySQLConnectionPool.h"
 
 int main()
 {
@@ -22,6 +23,20 @@ int main()
     if (!Config::Instance().Load("config/server.yaml"))
     {
         LOG_ERROR("load config failed");
+        return -1;
+    }
+
+    bool dbOk = MySQLConnectionPool::Instance().Init(
+        Config::Instance().GetMysqlHost(),
+        Config::Instance().GetMysqlPort(),
+        Config::Instance().GetMysqlUser(),
+        Config::Instance().GetMysqlPassword(),
+        Config::Instance().GetMysqlDatabase(),
+        Config::Instance().GetMysqlPoolSize());
+
+    if (!dbOk)
+    {
+        LOG_ERROR("Failed to initialize MySQL Connection Pool");
         return -1;
     }
 
