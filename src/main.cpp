@@ -14,6 +14,10 @@
 #include <boost/asio/steady_timer.hpp>
 #include "network/session/SessionManager.h"
 #include "database/mysql/MySQLConnectionPool.h"
+#include "database/worker/DBWorkerPool.h"
+#include "game/player/PlayerManager.h"
+#include "database/queue/SaveQueue.h"
+#include "database/task/SavePlayerTask.h"
 
 int main()
 {
@@ -64,6 +68,10 @@ int main()
     // IO 线程池：负责网络读写与 Protobuf 解析
     AsioContextPool contextPool(ioThreads);
 
+    DBWorkerPool::Instance().Start(4);
+
+    LOG_INFO("DBWorkerPool started with {} threads", 4);
+
     // 5. 创建服务器
     auto server = std::make_shared<TcpServer>(
         mainContext,
@@ -77,6 +85,16 @@ int main()
             if (!ec)
             {
                 LOG_INFO("Shutdown signal ({}) received. Starting graceful exit...", signal_number);
+
+                LOG_INFO("Flushing all players before shutdown...");
+
+                PlayerManager::Instance().ForEachPlayer(
+                    [](const std::shared_ptr<Player> &p)
+                    {
+                        uint32_t flags = static_cast<uint32_t>(PlayerDirtyFlag::ALL);
+                        auto task = std::make_unique<SavePlayerTask>(p, flags);
+                        SaveQueue::Instance().Push(p->GetId(), std::move(task));
+                    });
 
                 // 停止顺序：先断开连接 -> 停逻辑 -> 停网络池
                 server->Stop();
@@ -108,7 +126,26 @@ int main()
     // 启动第一次等待
     timeoutTimer->async_wait(timerHandler);
     // ------------------------------------
+    // --- AutoSave 定时器 ---
+    std::shared_ptr<boost::asio::steady_timer> autoSaveTimer =
+        std::make_shared<boost::asio::steady_timer>(mainContext, std::chrono::seconds(60));
 
+    std::function<void(const boost::system::error_code &)> autoSaveHandler;
+
+    autoSaveHandler = [&](const boost::system::error_code &ec)
+    {
+        if (!ec)
+        {
+            LOG_INFO("Running AutoSave Tick...");
+
+            PlayerManager::Instance().OnAutoSaveTick();
+
+            autoSaveTimer->expires_after(std::chrono::seconds(60));
+            autoSaveTimer->async_wait(autoSaveHandler);
+        }
+    };
+
+    autoSaveTimer->async_wait(autoSaveHandler);
     // 7. 启动网络监听
     server->StartAccept();
     LOG_INFO("AnimeGameServer started at port {}", port);

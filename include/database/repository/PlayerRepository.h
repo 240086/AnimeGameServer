@@ -10,7 +10,7 @@ public:
 
     static bool SaveInventory(Player &player);
 
-    static bool SaveCurrency(const Player &player);
+    static bool SaveCurrency(Player &player);
 
     static bool InsertGachaRecord(Player::PlayerId playerId, int itemId, int rarity);
 };

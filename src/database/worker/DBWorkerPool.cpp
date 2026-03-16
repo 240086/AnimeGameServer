@@ -1,6 +1,12 @@
 #include "database/worker/DBWorkerPool.h"
 #include "database/queue/SaveQueue.h"
 
+DBWorkerPool &DBWorkerPool::Instance()
+{
+    static DBWorkerPool instance;
+    return instance;
+}
+
 void DBWorkerPool::Start(size_t workerCount)
 {
     if (isStarted_.exchange(true))

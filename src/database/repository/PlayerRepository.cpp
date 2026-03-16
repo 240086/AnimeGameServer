@@ -128,6 +128,37 @@ bool PlayerRepository::SaveInventory(Player &player)
     return success;
 }
 
+bool PlayerRepository::SaveCurrency(Player &player)
+{
+    // 1. 获取数据库连接
+    auto conn = MySQLConnectionPool::Instance().Acquire();
+    if (!conn)
+    {
+        LOG_ERROR("Failed to acquire MySQL connection for player {}", player.GetId());
+        return false;
+    }
+
+    // 2. 获取当前内存中的货币数据
+    uint64_t amount = player.GetCurrency().Get();
+    uint64_t pid = player.GetId();
+
+    // 3. 构建 SQL 语句
+    // 这里假设表中 currency_type 1 代表主货币
+    // 使用 ON DUPLICATE KEY UPDATE 确保逻辑的原子性
+    std::string sql = "INSERT INTO player_currency (player_id, currency_type, amount) VALUES (" +
+                      std::to_string(pid) + ", 1, " + std::to_string(amount) +
+                      ") ON DUPLICATE KEY UPDATE amount = " + std::to_string(amount) + ";";
+
+    // 4. 执行并记录结果
+    bool success = conn->Execute(sql);
+    if (!success)
+    {
+        LOG_ERROR("Save currency failed for player {}. SQL: {}", pid, sql);
+    }
+
+    return success;
+}
+
 bool PlayerRepository::InsertGachaRecord(
     Player::PlayerId playerId,
     int itemId,

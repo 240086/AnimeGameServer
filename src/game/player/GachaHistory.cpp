@@ -1,4 +1,5 @@
 #include "game/player/GachaHistory.h"
+#include "game/player/Player.h"
 
 static constexpr size_t MAX_HISTORY = 1000;
 
@@ -21,5 +22,12 @@ void GachaHistory::Record(int rarity)
     else
     {
         pityCount_++; // 没出金，累加
+    }
+
+    // 4. 【核心优化】：触发脏标记
+    // 只要抽卡发生，历史记录和保底计数都发生了变更
+    if (owner_)
+    {
+        owner_->MarkDirty(PlayerDirtyFlag::GACHA_HISTORY);
     }
 }

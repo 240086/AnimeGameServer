@@ -3,6 +3,8 @@
 Player::Player(PlayerId id)
     : id_(id)
 {
+    inventory_.SetOwner(this);
+    history_.SetOwner(this);
 }
 
 Player::PlayerId Player::GetId() const
@@ -10,17 +12,17 @@ Player::PlayerId Player::GetId() const
     return id_;
 }
 
-Inventory& Player::GetInventory()
+Inventory &Player::GetInventory()
 {
     return inventory_;
 }
 
-GachaHistory& Player::GetGachaHistory()
+GachaHistory &Player::GetGachaHistory()
 {
     return history_;
 }
 
-Currency& Player::GetCurrency()
+Currency &Player::GetCurrency()
 {
     return currency_;
 }

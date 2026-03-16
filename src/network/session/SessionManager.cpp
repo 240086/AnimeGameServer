@@ -68,8 +68,8 @@ void SessionManager::RemoveSession(uint64_t id)
         if (player)
         {
             // 2. 同步清理 PlayerManager，打破 shared_ptr 计数
-            PlayerManager::Instance().RemovePlayer(player->GetId());
-            LOG_INFO("Player {} removed from Manager due to Session {} closure", player->GetId(), id);
+            PlayerManager::Instance().RemovePlayerWithSave(player->GetId());
+            LOG_INFO("Player {} session {} closed. Final save task pushed.", player->GetId(), id);
         }
 
         // 3. 执行解绑，彻底清理 Session 内部持有的 Actor 引用
@@ -81,39 +81,54 @@ void SessionManager::RemoveSession(uint64_t id)
 void SessionManager::CheckTimeout()
 {
     auto now = std::chrono::steady_clock::now();
-
     std::vector<std::shared_ptr<Session>> to_remove;
 
     for (size_t i = 0; i < BUCKET_COUNT; ++i)
     {
-        std::lock_guard<std::mutex> lock(buckets_[i].mutex);
-
-        auto &session_map = buckets_[i].sessions;
-
-        for (auto it = session_map.begin(); it != session_map.end();)
+        // 1. 锁内只做筛选，快速拷贝出超时的 Session 指针
         {
-            auto session = it->second;
+            std::lock_guard<std::mutex> lock(buckets_[i].mutex);
+            auto &session_map = buckets_[i].sessions;
 
-            auto diff = std::chrono::duration_cast<std::chrono::seconds>(
-                            now - session->GetLastHeartbeat())
-                            .count();
-
-            if (diff > 60)
+            for (auto it = session_map.begin(); it != session_map.end();)
             {
-                to_remove.push_back(session);
-                ++it;
+                auto session = it->second;
+                auto diff = std::chrono::duration_cast<std::chrono::seconds>(
+                                now - session->GetLastHeartbeat())
+                                .count();
+
+                if (diff > 60)
+                {
+                    to_remove.push_back(session);
+                    // 2. 注意：这里直接 erase 还是在 RemoveSession 里 erase？
+                    // 建议：此处直接标记，由下方的 Close 触发事件回调
+                    it = session_map.erase(it);
+                }
+                else
+                {
+                    ++it;
+                }
             }
         }
     }
 
-    // 锁外关闭连接
+    // 3. 锁外执行耗时或可能引起回调的操作
     for (auto &session : to_remove)
     {
-        auto conn = session->GetConnection();
+        LOG_WARN("Session {} timeout (60s), kicking player.", session->GetSessionId());
 
-        if (conn)
+        // 触发最终存盘（通过回调或显式调用）
+        auto player = session->GetPlayer();
+        if (player)
         {
-            conn->Close();
+            PlayerManager::Instance().RemovePlayerWithSave(player->GetId());
         }
+
+        auto conn = session->GetConnection();
+        if (conn)
+            conn->Close();
+
+        session->UnbindActor();
+        session->UnbindPlayer();
     }
 }
