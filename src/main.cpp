@@ -71,7 +71,7 @@ int main()
 
     DBWorkerPool::Instance().Start(SaveQueue::Instance().GetShardCount());
 
-    LOG_INFO("DBWorkerPool started with {} threads", 4);
+    LOG_INFO("DBWorkerPool started with {} threads", SaveQueue::Instance().GetShardCount());
 
     // 5. 创建服务器
     auto server = std::make_shared<TcpServer>(

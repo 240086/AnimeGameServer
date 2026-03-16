@@ -19,7 +19,7 @@ void SavePlayerTask::Execute(MySQLConnection *conn)
     uint64_t pid = player_->GetId();
 
     // 1. 【新增日志】：追踪任务开始执行的时刻和原因
-    LOG_INFO("TaskExecutor: Starting save for player {} [Flags: {}]", pid, dirtyFlags_);
+    // LOG_INFO("TaskExecutor: Starting save for player {} [Flags: {}]", pid, dirtyFlags_);
 
     // 2. 执行保存操作
     // 建议：PlayerSaver::Save 应该返回 bool，以便我们知道是否存盘成功
