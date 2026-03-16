@@ -1,27 +1,36 @@
 #pragma once
 
-#include <queue>
 #include <memory>
 #include <mutex>
 #include <condition_variable>
+#include <vector>
+#include <queue>
 
 class DatabaseTask;
 
 class SaveQueue
 {
 public:
+    static SaveQueue &Instance();
 
-    static SaveQueue& Instance();
+    void Push(uint64_t playerId, std::unique_ptr<DatabaseTask> task);
 
-    void Push(std::unique_ptr<DatabaseTask> task);
+    std::unique_ptr<DatabaseTask> Pop(size_t shardIndex);
 
-    std::unique_ptr<DatabaseTask> Pop();
+    size_t GetShardCount() const;
 
 private:
+    static constexpr size_t SHARD_COUNT = 16;
 
-    std::queue<std::unique_ptr<DatabaseTask>> queue_;
+    struct Shard
+    {
+        alignas(64) // 强制缓存行对齐（通常为 64 字节）
+            std::mutex mutex;
+        std::condition_variable cond;
+        std::queue<std::unique_ptr<DatabaseTask>> queue;
+    };
 
-    std::mutex mutex_;
+    std::vector<std::unique_ptr<Shard>> shards_;
 
-    std::condition_variable cond_;
+    SaveQueue();
 };

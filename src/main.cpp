@@ -40,10 +40,15 @@ int main()
         return -1;
     }
 
+    size_t cpu = std::thread::hardware_concurrency();
+
+    size_t ioThreads = std::max<size_t>(2, cpu / 2);
+    size_t logicThreads = cpu;
+
     // 2. 启动逻辑引擎 (重要修复：必须先启动 ActorSystem)
     // 建议分配 4 个线程处理逻辑，或者根据 CPU 核心数分配
-    ActorSystem::Instance().Start(std::thread::hardware_concurrency());
-    LOG_INFO("ActorSystem started with 16 worker threads");
+    ActorSystem::Instance().Start(logicThreads);
+    LOG_INFO("ActorSystem started with {} worker threads", logicThreads);
 
     // 3. 初始化业务系统
     ServiceManager::Instance().InitServices();
@@ -57,7 +62,7 @@ int main()
     boost::asio::signal_set signals(mainContext, SIGINT, SIGTERM);
 
     // IO 线程池：负责网络读写与 Protobuf 解析
-    AsioContextPool contextPool(std::thread::hardware_concurrency());
+    AsioContextPool contextPool(ioThreads);
 
     // 5. 创建服务器
     auto server = std::make_shared<TcpServer>(

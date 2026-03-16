@@ -19,12 +19,24 @@ AnimeGameServer
 │  ├─ database
 │  │  ├─ mysql
 │  │  │  ├─ MySQLConnection.h
-│  │  │  └─ MySQLConnectionPool.h
+│  │  │  ├─ MySQLConnectionPool.h
+│  │  │  └─ MySQLResult.h
+│  │  ├─ player
+│  │  │  ├─ PlayerLoader.h
+│  │  │  └─ PlayerSaver.h
+│  │  ├─ queue
+│  │  │  └─ SaveQueue.h
 │  │  ├─ redis
 │  │  │  └─ RedisClient.h
-│  │  └─ repository
-│  │     ├─ AccountRepository.h
-│  │     └─ PlayerRepository.h
+│  │  ├─ repository
+│  │  │  ├─ AccountRepository.h
+│  │  │  └─ PlayerRepository.h
+│  │  ├─ task
+│  │  │  ├─ DatabaseTask.h
+│  │  │  └─ SavePlayerTask.h
+│  │  └─ worker
+│  │     ├─ DBWorker.h
+│  │     └─ DBWorkerPool.h
 │  ├─ game
 │  │  ├─ actor
 │  │  │  ├─ Actor.h
@@ -54,13 +66,6 @@ AnimeGameServer
 │  │  ├─ manager
 │  │  │  └─ ConnectionManager.h
 │  │  ├─ protocol
-│  │  │  ├─ generated
-│  │  │  │  ├─ gacha.pb.cc
-│  │  │  │  ├─ gacha.pb.h
-│  │  │  │  ├─ heartbeat.pb.cc
-│  │  │  │  ├─ heartbeat.pb.h
-│  │  │  │  ├─ login.pb.cc
-│  │  │  │  └─ login.pb.h
 │  │  │  ├─ MessageId.h
 │  │  │  ├─ Packet.h
 │  │  │  ├─ PacketParser.h
@@ -94,11 +99,21 @@ AnimeGameServer
 │  │  ├─ mysql
 │  │  │  ├─ MySQLConnection.cpp
 │  │  │  └─ MySQLConnectionPool.cpp
+│  │  ├─ player
+│  │  │  ├─ PlayerLoader.cpp
+│  │  │  └─ PlayerSaver.cpp
+│  │  ├─ queue
+│  │  │  └─ SaveQueue.cpp
 │  │  ├─ redis
 │  │  │  └─ RedisClient.cpp
-│  │  └─ repository
-│  │     ├─ AccountRepository.cpp
-│  │     └─ PlayerRepository.cpp
+│  │  ├─ repository
+│  │  │  ├─ AccountRepository.cpp
+│  │  │  └─ PlayerRepository.cpp
+│  │  ├─ task
+│  │  │  └─ SavePlayerTask.cpp
+│  │  └─ worker
+│  │     ├─ DBWorker.cpp
+│  │     └─ DBWorkerPool.cpp
 │  ├─ game
 │  │  ├─ actor
 │  │  │  ├─ Actor.cpp

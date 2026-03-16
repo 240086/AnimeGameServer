@@ -1,5 +1,5 @@
 #pragma once
-
+// F:\VSCode_project\Cpp_Proj\AnimeGameServer\include\game\player\PlayerManager.h
 #include <unordered_map>
 #include <memory>
 #include <mutex>
@@ -8,9 +8,10 @@
 
 class Player;
 
-class PlayerManager {
+class PlayerManager
+{
 public:
-    static PlayerManager& Instance();
+    static PlayerManager &Instance();
 
     // 基础增删改查
     void AddPlayer(std::shared_ptr<Player> player);
@@ -19,9 +20,9 @@ public:
 
     // 统计与批量操作
     size_t OnlineCount();
-    
+
     // 安全遍历：采用分桶遍历，减小锁粒度
-    void ForEachPlayer(std::function<void(const std::shared_ptr<Player>&)> func);
+    void ForEachPlayer(std::function<void(const std::shared_ptr<Player> &)> func);
 
 private:
     PlayerManager() = default;
@@ -29,12 +30,13 @@ private:
     // 使用 64 个桶，支撑万级并发
     static constexpr size_t BUCKET_COUNT = 64;
 
-    struct Bucket {
+    struct Bucket
+    {
         std::mutex mutex;
         std::unordered_map<uint64_t, std::shared_ptr<Player>> players;
     };
 
     Bucket buckets_[BUCKET_COUNT];
 
-    size_t GetBucketIndex(uint64_t id) const { return id % BUCKET_COUNT; }
+    size_t GetBucketIndex(uint64_t id) const { return id & (BUCKET_COUNT - 1); }
 };
