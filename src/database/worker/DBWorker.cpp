@@ -23,6 +23,7 @@ void DBWorker::Start()
 void DBWorker::Stop()
 {
     running_ = false;
+    SaveQueue::Instance().Push(nullptr);
 
     if (thread_.joinable())
         thread_.join();
@@ -33,6 +34,9 @@ void DBWorker::Run()
     while (running_)
     {
         auto task = SaveQueue::Instance().Pop();
+
+        if (!task)
+            break;
 
         auto conn = MySQLConnectionPool::Instance().Acquire();
 
