@@ -6,17 +6,15 @@
 #include "common/logger/Logger.h"
 
 TcpServer::TcpServer(
-    boost::asio::io_context& mainContext,
-    AsioContextPool& contextPool,
-    int port
-)
-: mainContext_(mainContext),
-  contextPool_(contextPool),
-  acceptor_(
-      mainContext,
-      tcp::endpoint(tcp::v4(), port)
-  ),
-  timer_(mainContext, std::chrono::seconds(30))
+    boost::asio::io_context &mainContext,
+    AsioContextPool &contextPool,
+    int port)
+    : mainContext_(mainContext),
+      contextPool_(contextPool),
+      acceptor_(
+          mainContext,
+          tcp::endpoint(tcp::v4(), port)),
+      timer_(mainContext, std::chrono::seconds(30))
 {
 }
 
@@ -31,7 +29,7 @@ void TcpServer::DoAccept()
     auto self = shared_from_this();
 
     // 选择一个 IO 线程
-    auto& ioContext = contextPool_.GetIOContext();
+    auto &ioContext = contextPool_.GetIOContext();
 
     auto connection =
         std::make_shared<Connection>(ioContext);
@@ -40,6 +38,8 @@ void TcpServer::DoAccept()
         connection->GetSocket(),
         [self, connection](boost::system::error_code ec)
         {
+            connection->GetSocket().set_option(
+                boost::asio::ip::tcp::no_delay(true));
             if (!ec)
             {
                 int id =
@@ -49,9 +49,7 @@ void TcpServer::DoAccept()
                 LOG_INFO(
                     "client connected id={} online={}",
                     id,
-                    ConnectionManager::Instance().OnlineCount()
-                );
-
+                    ConnectionManager::Instance().OnlineCount());
 
                 connection->SetConnectionId(id);
                 connection->Start();
@@ -86,9 +84,10 @@ void TcpServer::DoAccept()
 //         });
 // }
 
-void TcpServer::Stop() {
+void TcpServer::Stop()
+{
     boost::system::error_code ec;
     acceptor_.close(ec); // 停止监听
-    timer_.cancel();   // 停止心跳检测
+    timer_.cancel();     // 停止心跳检测
     LOG_INFO("TcpServer listener closed.");
 }

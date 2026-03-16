@@ -36,6 +36,8 @@ private:
     // 使用 64 个桶，支撑万级并发
     static constexpr size_t BUCKET_COUNT = 64;
 
+    uint64_t autosave_counter_ = 0;
+
     struct Bucket
     {
         std::mutex mutex;

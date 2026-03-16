@@ -49,15 +49,17 @@ void ServerMetrics::PrintReport()
     LOG_INFO("DB Tasks: {} finished / {}", finished, total);
     LOG_INFO("DB Avg Latency: {:.3f} ms", avgLatency);
 
+    size_t totalBacklog = 0;
+
     for (size_t i = 0; i < SaveQueue::Instance().GetShardCount(); i++)
     {
         size_t size = SaveQueue::Instance().GetShardQueueSize(i);
-
+        totalBacklog += size;
         if (size > 0)
         {
             LOG_INFO("SaveQueue Shard {} backlog {}", i, size);
         }
     }
-
+    LOG_INFO("SaveQueue Total Backlog: {}", totalBacklog);
     LOG_INFO("======================================");
 }

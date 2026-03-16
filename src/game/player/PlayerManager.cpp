@@ -74,34 +74,40 @@ void PlayerManager::ForEachPlayer(
 
 void PlayerManager::OnAutoSaveTick()
 {
-    // 遍历所有桶
-    for (size_t i = 0; i < BUCKET_COUNT; ++i)
-    {
-        // 局部变量：只在锁内拷贝指针，减少锁持有时间
-        std::vector<std::shared_ptr<Player>> dirtyPlayers;
+    autosave_counter_++;
 
+    size_t bucketIndex = autosave_counter_ % BUCKET_COUNT;
+
+    std::vector<std::shared_ptr<Player>> dirtyPlayers;
+
+    {
+        std::lock_guard<std::mutex> lock(buckets_[bucketIndex].mutex);
+
+        for (auto &pair : buckets_[bucketIndex].players)
         {
-            std::lock_guard<std::mutex> lock(buckets_[i].mutex);
-            for (auto &pair : buckets_[i].players)
+            if (pair.second->IsDirty())
             {
-                if (pair.second->IsDirty())
-                {
-                    dirtyPlayers.push_back(pair.second);
-                }
+                dirtyPlayers.push_back(pair.second);
             }
         }
+    }
 
-        // 在锁外创建任务并推入队列，绝不阻塞 PlayerManager 的桶
-        for (auto &player : dirtyPlayers)
-        {
-            // 核心：读取并清空标记
-            uint32_t flags = player->FetchDirtyFlags();
-            if (flags == 0)
-                continue;
+    size_t saveCount = 0;
+    const size_t MAX_SAVE_PER_TICK = 100;
 
-            auto task = std::make_unique<SavePlayerTask>(player, flags);
-            SaveQueue::Instance().Push(player->GetId(), std::move(task));
-        }
+    for (auto &player : dirtyPlayers)
+    {
+        if (saveCount >= MAX_SAVE_PER_TICK)
+            break;
+
+        uint32_t flags = player->FetchDirtyFlags();
+        if (flags == 0)
+            continue;
+
+        auto task = std::make_unique<SavePlayerTask>(player, flags);
+        SaveQueue::Instance().Push(player->GetId(), std::move(task));
+
+        saveCount++;
     }
 }
 

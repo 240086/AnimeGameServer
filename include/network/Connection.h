@@ -56,7 +56,7 @@ private:
 
     enum
     {
-        BUFFER_SIZE = 4096
+        BUFFER_SIZE = 8192
     };
     char buffer_[BUFFER_SIZE];
 
