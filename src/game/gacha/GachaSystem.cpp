@@ -26,6 +26,9 @@ GachaItem GachaSystem::DrawOnce(Player &player)
 
     int rarity = PitySystem::RollRarity(history);
 
+    // 2. 【缺失的关键步骤】记录本次结果，触发保底计数器更新和窗口滑动
+    history.Record(rarity);
+
     auto &pool =
         GachaPoolManager::Instance().GetPool(default_pool_id_);
 

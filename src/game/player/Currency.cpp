@@ -1,8 +1,8 @@
 #include "game/player/Currency.h"
 
-bool Currency::Spend(int amount)
+bool Currency::Spend(uint64_t amount)
 {
-    int current = value_.load();
+    uint64_t current = value_.load();
 
     while (current >= amount)
     {
@@ -15,7 +15,7 @@ bool Currency::Spend(int amount)
     return false;
 }
 
-void Currency::Add(int amount)
+void Currency::Add(uint64_t amount)
 {
     value_.fetch_add(amount);
 }
