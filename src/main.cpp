@@ -18,6 +18,7 @@
 #include "game/player/PlayerManager.h"
 #include "database/queue/SaveQueue.h"
 #include "database/task/SavePlayerTask.h"
+#include "common/metrics/ServerMetrics.h"
 
 int main()
 {
@@ -68,7 +69,7 @@ int main()
     // IO 线程池：负责网络读写与 Protobuf 解析
     AsioContextPool contextPool(ioThreads);
 
-    DBWorkerPool::Instance().Start(4);
+    DBWorkerPool::Instance().Start(SaveQueue::Instance().GetShardCount());
 
     LOG_INFO("DBWorkerPool started with {} threads", 4);
 
@@ -146,6 +147,28 @@ int main()
     };
 
     autoSaveTimer->async_wait(autoSaveHandler);
+
+    // --- Metrics Timer ---
+    std::shared_ptr<boost::asio::steady_timer> metricsTimer =
+        std::make_shared<boost::asio::steady_timer>(
+            mainContext,
+            std::chrono::seconds(5));
+
+    std::function<void(const boost::system::error_code &)> metricsHandler;
+
+    metricsHandler = [&](const boost::system::error_code &ec)
+    {
+        if (!ec)
+        {
+            ServerMetrics::Instance().PrintReport();
+
+            metricsTimer->expires_after(std::chrono::seconds(5));
+            metricsTimer->async_wait(metricsHandler);
+        }
+    };
+
+    metricsTimer->async_wait(metricsHandler);
+
     // 7. 启动网络监听
     server->StartAccept();
     LOG_INFO("AnimeGameServer started at port {}", port);

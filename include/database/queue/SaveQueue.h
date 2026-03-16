@@ -21,6 +21,8 @@ public:
 
     size_t GetShardCount() const;
 
+    size_t GetShardQueueSize(size_t shardIndex);
+
 private:
     static constexpr size_t SHARD_COUNT = 16;
 

@@ -2,6 +2,7 @@
 #include "network/Connection.h"
 #include "game/player/PlayerManager.h"
 #include "common/logger/Logger.h"
+#include "common/metrics/ServerMetrics.h"
 
 SessionManager &SessionManager::Instance()
 {
@@ -21,6 +22,8 @@ std::shared_ptr<Session> SessionManager::CreateSession()
         std::lock_guard<std::mutex> lock(buckets_[idx].mutex);
         buckets_[idx].sessions[id] = session;
     }
+
+    ServerMetrics::Instance().IncSession();
 
     return session;
 }
@@ -76,6 +79,7 @@ void SessionManager::RemoveSession(uint64_t id)
         session->UnbindActor();
         session->UnbindPlayer();
     }
+    ServerMetrics::Instance().DecSession();
 }
 
 void SessionManager::CheckTimeout()

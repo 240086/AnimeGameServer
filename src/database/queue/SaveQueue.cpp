@@ -1,5 +1,7 @@
 #include "database/queue/SaveQueue.h"
 #include "database/task/DatabaseTask.h"
+#include "common/logger/Logger.h"
+#include "common/metrics/ServerMetrics.h"
 
 SaveQueue::SaveQueue()
 {
@@ -19,6 +21,13 @@ SaveQueue &SaveQueue::Instance()
 void SaveQueue::Push(uint64_t playerId, std::unique_ptr<DatabaseTask> task)
 {
     size_t shard = playerId % SHARD_COUNT;
+
+    // LOG_INFO(
+    //     "SaveQueue Push player {} -> shard {}",
+    //     playerId,
+    //     shard);
+
+    ServerMetrics::Instance().IncDBTask();
 
     auto &s = *shards_[shard];
 
@@ -61,4 +70,13 @@ std::unique_ptr<DatabaseTask> SaveQueue::Pop(size_t shardIndex)
 size_t SaveQueue::GetShardCount() const
 {
     return SHARD_COUNT;
+}
+
+size_t SaveQueue::GetShardQueueSize(size_t shardIndex)
+{
+    auto &s = *shards_[shardIndex];
+
+    std::lock_guard<std::mutex> lock(s.mutex);
+
+    return s.queue.size();
 }

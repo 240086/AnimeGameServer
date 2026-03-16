@@ -4,6 +4,8 @@
 #include "database/task/DatabaseTask.h"
 #include "database/mysql/MySQLConnectionPool.h"
 #include "common/logger/Logger.h"
+#include "common/metrics/ServerMetrics.h"
+#include <chrono>
 
 DBWorker::DBWorker(size_t shardIndex) : shardIndex_(shardIndex)
 {
@@ -24,7 +26,8 @@ void DBWorker::Stop()
 {
     // 1. 使用原子操作防止重复停止
     bool expected = true;
-    if (!running_.compare_exchange_strong(expected, false)) {
+    if (!running_.compare_exchange_strong(expected, false))
+    {
         return;
     }
 
@@ -33,7 +36,8 @@ void DBWorker::Stop()
     SaveQueue::Instance().PushToShard(shardIndex_, nullptr);
 
     // 3. 阻塞等待线程真正结束
-    if (thread_.joinable()) {
+    if (thread_.joinable())
+    {
         thread_.join();
     }
 }
@@ -57,7 +61,19 @@ void DBWorker::Run()
         auto conn = MySQLConnectionPool::Instance().Acquire();
         if (conn)
         {
+            auto start = std::chrono::high_resolution_clock::now();
+
             task->Execute(conn.get());
+
+            auto end = std::chrono::high_resolution_clock::now();
+
+            uint64_t us =
+                std::chrono::duration_cast<std::chrono::microseconds>(
+                    end - start)
+                    .count();
+
+            ServerMetrics::Instance().AddDBLatency(us);
+            ServerMetrics::Instance().IncDBTaskFinished();
         }
     }
 }
