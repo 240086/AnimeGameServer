@@ -14,6 +14,8 @@ public:
     static SaveQueue &Instance();
 
     void Push(uint64_t playerId, std::unique_ptr<DatabaseTask> task);
+    // 系统层调用：直接指定分片 (用于发送停止信号)
+    void PushToShard(size_t shardIndex, std::unique_ptr<DatabaseTask> task);
 
     std::unique_ptr<DatabaseTask> Pop(size_t shardIndex);
 

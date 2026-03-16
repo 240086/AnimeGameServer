@@ -24,6 +24,12 @@ public:
     // 安全遍历：采用分桶遍历，减小锁粒度
     void ForEachPlayer(std::function<void(const std::shared_ptr<Player> &)> func);
 
+    // 专门的自动存盘触发器
+    void OnAutoSaveTick();
+
+    // 增强版：下线并强制存盘
+    void RemovePlayerWithSave(uint64_t uid);
+
 private:
     PlayerManager() = default;
 

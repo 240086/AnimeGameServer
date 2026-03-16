@@ -4,10 +4,10 @@
 void Actor::Post(Task task)
 {
     if (IsStopped())
-        return; // 拦截幽灵任务
+        return;
+
     mailbox_.Push(std::move(task));
 
-    // 使用 shared_from_this 保证在入队期间对象不会被销毁
     if (TrySchedule())
     {
         ActorSystem::Instance().Schedule(shared_from_this());
@@ -19,7 +19,7 @@ void Actor::Process(int maxTasks)
     Task task;
     int count = 0;
 
-    // 逻辑提纯：Process 只管做功，不负责调度状态的终结
+    // 1. 纯粹执行任务，最多执行 maxTasks 个，防止占用 Worker 太久（饥饿）
     while (count < maxTasks && mailbox_.Pop(task))
     {
         if (task)
@@ -27,13 +27,11 @@ void Actor::Process(int maxTasks)
         count++;
     }
 
-    // 2. 尝试重置调度位
-    // 注意：这里不能直接 store(false)，必须配合 HasMoreTasks 检查
+    // 2. 释放调度权：这是最关键的一步
     SetScheduled(false);
 
-    // 3. 核心修复：双重检查
-    // 如果在 SetScheduled(false) 之后，mailbox 又有了新任务，
-    // 必须尝试重新竞争调度权，否则该 Actor 就会“由于没人拉一把”而永久沉睡。
+    // 3. 唯一的 Double Check 屏障
+    // 如果交出调度权后，mailbox 恰好进了新任务，尝试重新抢占调度权
     if (HasMoreTasks() && TrySchedule())
     {
         ActorSystem::Instance().Schedule(shared_from_this());

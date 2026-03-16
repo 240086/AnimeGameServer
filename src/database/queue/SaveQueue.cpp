@@ -30,6 +30,19 @@ void SaveQueue::Push(uint64_t playerId, std::unique_ptr<DatabaseTask> task)
     s.cond.notify_one();
 }
 
+void SaveQueue::PushToShard(size_t shardIndex, std::unique_ptr<DatabaseTask> task)
+{
+    if (shardIndex >= SHARD_COUNT)
+        return;
+
+    auto &s = *shards_[shardIndex];
+    {
+        std::lock_guard<std::mutex> lock(s.mutex);
+        s.queue.push(std::move(task));
+    }
+    s.cond.notify_one();
+}
+
 std::unique_ptr<DatabaseTask> SaveQueue::Pop(size_t shardIndex)
 {
     auto &s = *shards_[shardIndex];

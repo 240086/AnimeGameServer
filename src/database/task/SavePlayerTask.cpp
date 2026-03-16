@@ -2,13 +2,18 @@
 
 #include "database/player/PlayerSaver.h"
 #include "game/player/Player.h"
+#include "game/player/PlayerDirtyFlag.h"
 
-SavePlayerTask::SavePlayerTask(std::shared_ptr<Player> player)
-    : player_(player)
+SavePlayerTask::SavePlayerTask(std::shared_ptr<Player> player, uint32_t dirtyFlags)
+    : player_(player),
+      dirtyFlags_(dirtyFlags)
 {
 }
 
-void SavePlayerTask::Execute(MySQLConnection* conn)
+void SavePlayerTask::Execute(MySQLConnection *conn)
 {
-    PlayerSaver::Save(player_);
+    if (!player_)
+        return;
+
+    PlayerSaver::Save(conn, player_, dirtyFlags_);
 }

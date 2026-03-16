@@ -9,90 +9,82 @@ ActorSystem &ActorSystem::Instance()
 
 void ActorSystem::Start(int threads)
 {
-    running_ = true;
+    running_.store(true);
+
+    // 初始化分片，分片数量与线程数一致（严格绑定模式）
+    shards_ = std::vector<Shard>(threads);
 
     for (int i = 0; i < threads; i++)
     {
-        workers_.emplace_back(&ActorSystem::Worker, this);
+        // 传入分片索引，让每个线程只负责自己的分片
+        workers_.emplace_back(&ActorSystem::Worker, this, i);
     }
 }
 
 void ActorSystem::Stop()
 {
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (!running_)
-            return;
-        running_ = false; // 1. 先标记停止，后续 Post 将不再能通过 Schedule 唤醒（逻辑需配套）
-    }
+    running_.store(false);
 
-    cond_.notify_all();
+    // 唤醒所有分片中的阻塞线程
+    for (auto &shard : shards_)
+    {
+        shard.cond.notify_all();
+    }
 
     for (auto &t : workers_)
     {
-        t.join();
+        if (t.joinable())
+            t.join();
     }
 
     workers_.clear();
+    shards_.clear();
 }
 
 void ActorSystem::Schedule(std::shared_ptr<Actor> actor)
 {
-    if (!running_ || !actor)
+    if (!running_.load() || !actor)
         return;
 
+    // 核心：基于 Actor 内存地址或 ID 进行哈希，路由到固定分片
+    // 保证同一个 Actor 永远被同一个分片处理
+    size_t shardIndex = reinterpret_cast<uintptr_t>(actor.get()) % shards_.size();
+    auto &shard = shards_[shardIndex];
+
     {
-        std::lock_guard<std::mutex> lock(mutex_);
-        ready_queue_.push(std::move(actor));
+        std::lock_guard<std::mutex> lock(shard.mutex);
+        shard.ready_queue.push(std::move(actor));
     }
-    cond_.notify_one();
+    shard.cond.notify_one();
 }
 
-void ActorSystem::Worker()
+void ActorSystem::Worker(int shardIndex)
 {
+    auto &shard = shards_[shardIndex];
+
     while (true)
     {
         std::shared_ptr<Actor> actor = nullptr;
 
         {
-            std::unique_lock<std::mutex> lock(mutex_);
-            cond_.wait(lock, [this]
-                       { return !running_ || !ready_queue_.empty(); });
+            std::unique_lock<std::mutex> lock(shard.mutex);
+            shard.cond.wait(lock, [this, &shard]
+                            { return !running_.load() || !shard.ready_queue.empty(); });
 
-            // 停机且队列空，才退出
-            if (!running_ && ready_queue_.empty())
+            if (!running_.load() && shard.ready_queue.empty())
                 return;
 
-            if (!ready_queue_.empty())
+            if (!shard.ready_queue.empty())
             {
-                actor = std::move(ready_queue_.front());
-                ready_queue_.pop();
+                actor = std::move(shard.ready_queue.front());
+                shard.ready_queue.pop();
             }
         }
 
         if (actor)
         {
-            // 核心逻辑：单次处理
-            actor->Process();
-
-            // 检查是否需要继续调度
-            // 此时不需要在这里 SetScheduled(false)，
-            // 因为 Actor 内部的 TrySchedule 应该是原子的
-            if (actor->HasMoreTasks())
-            {
-                Schedule(actor);
-            }
-            else
-            {
-                // 只有在确定没任务时，才交出调度权
-                actor->SetScheduled(false);
-
-                // Double Check：防止在 SetScheduled(false) 的瞬间有新任务进入
-                if (actor->HasMoreTasks() && actor->TrySchedule())
-                {
-                    Schedule(actor);
-                }
-            }
+            // 极简主义：Worker 只管触发，状态机全权交由 Actor 内部控制
+            actor->Process(32);
         }
     }
 }

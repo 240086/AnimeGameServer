@@ -54,6 +54,7 @@ AnimeGameServer
 │  │     ├─ GachaHistory.h
 │  │     ├─ Inventory.h
 │  │     ├─ Player.h
+│  │     ├─ PlayerDirtyFlag.h
 │  │     └─ PlayerManager.h
 │  ├─ network
 │  │  ├─ asio
