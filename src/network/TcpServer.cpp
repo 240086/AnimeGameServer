@@ -38,8 +38,6 @@ void TcpServer::DoAccept()
         connection->GetSocket(),
         [self, connection](boost::system::error_code ec)
         {
-            connection->GetSocket().set_option(
-                boost::asio::ip::tcp::no_delay(true));
             if (!ec)
             {
                 int id =
