@@ -101,7 +101,7 @@ void SessionManager::CheckTimeout()
                                 now - session->GetLastHeartbeat())
                                 .count();
 
-                if (diff > 60)
+                if (diff > 180)
                 {
                     to_remove.push_back(session);
                     // 2. 注意：这里直接 erase 还是在 RemoveSession 里 erase？
@@ -119,7 +119,7 @@ void SessionManager::CheckTimeout()
     // 3. 锁外执行耗时或可能引起回调的操作
     for (auto &session : to_remove)
     {
-        LOG_WARN("Session {} timeout (60s), kicking player.", session->GetSessionId());
+        LOG_WARN("Session {} timeout (180s), kicking player.", session->GetSessionId());
 
         // 触发最终存盘（通过回调或显式调用）
         auto player = session->GetPlayer();

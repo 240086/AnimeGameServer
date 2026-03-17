@@ -11,6 +11,7 @@
 
 #include "network/protocol/generated/login.pb.h"
 #include "database/player/PlayerLoader.h"
+#include "database/repository/AccountRepository.h"
 
 LoginService &LoginService::Instance()
 {
@@ -51,10 +52,17 @@ void LoginService::HandleLogin(Connection *conn, const char *data, size_t len)
         return;
     }
 
-    // 3. 确定玩家 ID
-    // 专业提示：实际项目中这里应该是根据 request.token() 或 username 从数据库/Auth服务查询 UID
-    static std::atomic<uint64_t> next_player_id{1};
-    uint64_t playerId = next_player_id++;
+    // 3. 通过账号系统查询玩家 ID（避免随机 UID 导致数据错乱）
+    auto playerIdOpt = AccountRepository::Instance().GetAccountId(
+        request.username(),
+        request.password());
+    if (!playerIdOpt)
+    {
+        LOG_WARN("Login failed for username={} (account not found or password mismatch)", request.username());
+        return;
+    }
+
+    uint64_t playerId = *playerIdOpt;
 
     /* ---------- 专业逻辑开始：顶号检查 (Kick Old Connection) ---------- */
     // 如果该 UID 已经在线，需要先踢掉旧的连接
@@ -93,7 +101,7 @@ void LoginService::HandleLogin(Connection *conn, const char *data, size_t len)
     actor->Post([weakConn, player, playerId]()
                 {
         // 重要：初次登录的奖励、属性计算等逻辑应在 Actor 线程执行，确保线程安全
-        player->GetCurrency().Set(1000000000); 
+        player->GetCurrency().Set(1000000); 
 
         auto connPtr = weakConn.lock();
         if (!connPtr)

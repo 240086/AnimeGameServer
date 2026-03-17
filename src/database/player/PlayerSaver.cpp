@@ -2,6 +2,7 @@
 #include "game/player/Player.h"
 #include "common/logger/Logger.h"
 #include <algorithm>
+#include "database/mysql/MySQLConnectionPool.h"
 
 bool PlayerSaver::Save(MySQLConnection *conn,
                        std::shared_ptr<Player> player,
@@ -10,7 +11,7 @@ bool PlayerSaver::Save(MySQLConnection *conn,
     if (!conn || !player)
         return false;
 
-    uint64_t pid = player->GetId();
+    const uint64_t pid = player->GetId();
 
     // 1. 显式开启事务，确保 SaveCurrency/Inventory/History 的原子性
     if (!conn->Execute("START TRANSACTION"))
@@ -102,26 +103,28 @@ bool PlayerSaver::SaveInventory(MySQLConnection *conn, Player &player)
 bool PlayerSaver::SaveGachaHistory(MySQLConnection *conn, Player &player)
 {
     auto &gachaComp = player.GetGachaHistory();
-    const auto &history = gachaComp.GetHistory();
+    // const auto &history = gachaComp.GetHistory();
+    const auto unpersisted = gachaComp.GetUnpersisted();
 
-    // 🔥 核心改进：获取增量起始点
-    size_t startIndex = gachaComp.GetUnpersisted();
-    if (startIndex >= history.size())
+    // // 🔥 核心改进：获取增量起始点
+    // size_t startIndex = gachaComp.GetUnpersisted();
+    // if (startIndex >= history.size())
+    //     return true;
+    if (unpersisted.empty())
         return true;
 
     uint64_t pid = player.GetId();
 
     // 🔥 工业级实践：分批写入，防止大包超过 MySQL max_allowed_packet
     constexpr size_t BATCH_SIZE = 100;
-    size_t current = startIndex;
-    size_t total = history.size();
 
-    while (current < total)
+    size_t current = 0;
+    while (current < unpersisted.size())
     {
-        size_t batchEnd = std::min(current + BATCH_SIZE, total);
+        const size_t batchEnd = std::min(current + BATCH_SIZE, unpersisted.size());
 
         std::string sql;
-        sql.reserve(256 + (batchEnd - current) * 32);
+        sql.reserve(256 + (batchEnd - current) * 48);
         sql = "INSERT INTO gacha_history(player_id, item_id, rarity) VALUES ";
 
         bool first = true;
@@ -129,7 +132,7 @@ bool PlayerSaver::SaveGachaHistory(MySQLConnection *conn, Player &player)
         {
             if (!first)
                 sql += ",";
-            sql += "(" + std::to_string(pid) + ",0," + std::to_string(history[i]) + ")";
+            sql += "(" + std::to_string(pid) + ",0," + std::to_string(unpersisted[i].rarity) + ")";
             first = false;
         }
 
@@ -141,10 +144,7 @@ bool PlayerSaver::SaveGachaHistory(MySQLConnection *conn, Player &player)
 
         current = batchEnd;
     }
-
-    // 🔥 只有所有 Batch 都 Execute 成功，且处于事务提交前的最后时刻，才推进游标
-    // 注意：这里建议在 Player::GetGachaHistory 内部实现一个方法来更新索引
-    gachaComp.UpdatePersistedIndex(total);
+    gachaComp.MarkPersisted(unpersisted.back().seq);
 
     return true;
 }

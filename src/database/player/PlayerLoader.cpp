@@ -13,6 +13,9 @@ bool PlayerLoader::Load(uint64_t playerId, Player &player)
     if (!LoadGachaHistory(playerId, player))
         return false;
 
+    // 清理加载阶段产生的脏标记，避免登录后立刻触发无意义持久化
+    (void)player.FetchDirtyFlags();
+
     LOG_INFO("Player {} data loaded", playerId);
 
     return true;
@@ -116,8 +119,13 @@ bool PlayerLoader::LoadGachaHistory(uint64_t playerId, Player &player)
     while ((row = result->FetchRow()) != nullptr)
     {
         int rarity = std::stoi(row[0]);
-
         player.GetGachaHistory().Record(rarity);
+    }
+
+    const auto &history = player.GetGachaHistory().GetHistory();
+    if (!history.empty())
+    {
+        player.GetGachaHistory().MarkPersisted(history.back().seq);
     }
 
     return true;
