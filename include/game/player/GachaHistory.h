@@ -2,35 +2,44 @@
 
 #include <deque>
 #include <vector>
+#include <cstdint>
 
 class Player;
+
+struct GachaRecord
+{
+    uint64_t seq;  // 全局递增ID（关键）
+    int rarity;
+};
+
 class GachaHistory
 {
 public:
-    // 限制最大历史记录，防止内存溢出
     static constexpr size_t MAX_HISTORY = 1000;
 
-    // 记录一次抽卡结果（rarity: 3, 4, 5）
     void Record(int rarity);
 
-    // 绑定所属玩家
-    void SetOwner(Player *owner) { owner_ = owner; }
+    void SetOwner(Player* owner) { owner_ = owner; }
 
-    // 获取距离上一次五星已抽次数（保底计数）
     int SinceLastFiveStar() const { return pityCount_; }
 
-    // 提供给 PlayerSaver 使用的只读接口
-    const std::deque<int> &GetHistory() const { return history_; }
+    const std::deque<GachaRecord>& GetHistory() const { return history_; }
 
-    // 调试或存盘用：获取总抽卡数
     size_t GetTotalCount() const { return history_.size(); }
 
-private:
-    // 使用 deque 优化头部删除效率
-    std::deque<int> history_;
+    // 获取未持久化数据（更安全）
+    std::vector<GachaRecord> GetUnpersisted() const;
 
-    // 缓存保底计数，避免重复遍历
+    // 标记持久化到某个 seq
+    void MarkPersisted(uint64_t seq);
+
+private:
+    std::deque<GachaRecord> history_;
+
     int pityCount_ = 0;
 
-    Player *owner_ = nullptr; // 指向所属玩家
+    uint64_t nextSeq_ = 1;          // 下一个序号
+    uint64_t persistedSeq_ = 0;     // 已持久化到的最大seq
+
+    Player* owner_ = nullptr;
 };

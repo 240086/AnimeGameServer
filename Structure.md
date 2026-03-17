@@ -11,6 +11,8 @@ AnimeGameServer
 │  │  │  └─ Config.h
 │  │  ├─ logger
 │  │  │  └─ Logger.h
+│  │  ├─ metrics
+│  │  │  └─ ServerMetrics.h
 │  │  ├─ random
 │  │  │  └─ RandomEngine.h
 │  │  └─ thread
@@ -91,6 +93,8 @@ AnimeGameServer
 │  │  │  └─ Config.cpp
 │  │  ├─ logger
 │  │  │  └─ Logger.cpp
+│  │  ├─ metrics
+│  │  │  └─ ServerMetrics.cpp
 │  │  ├─ random
 │  │  │  └─ RandomEngine.cpp
 │  │  └─ thread
