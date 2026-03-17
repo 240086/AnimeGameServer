@@ -52,6 +52,19 @@ void LoginService::HandleLogin(Connection *conn, const char *data, size_t len)
         return;
     }
 
+#define STRESS_TEST_MODE
+#ifdef STRESS_TEST_MODE
+
+    uint64_t playerId = std::stoull(request.username()); // user_id = username
+
+    auto player = std::make_shared<Player>(playerId);
+
+    // ❗ 不走 DB
+    player->GetCurrency().Set(1000000);
+
+#else
+
+    // 正常账号逻辑
     // 3. 通过账号系统查询玩家 ID（避免随机 UID 导致数据错乱）
     auto playerIdOpt = AccountRepository::Instance().GetAccountId(
         request.username(),
@@ -61,8 +74,9 @@ void LoginService::HandleLogin(Connection *conn, const char *data, size_t len)
         LOG_WARN("Login failed for username={} (account not found or password mismatch)", request.username());
         return;
     }
-
     uint64_t playerId = *playerIdOpt;
+
+#endif
 
     /* ---------- 专业逻辑开始：顶号检查 (Kick Old Connection) ---------- */
     // 如果该 UID 已经在线，需要先踢掉旧的连接
@@ -75,7 +89,7 @@ void LoginService::HandleLogin(Connection *conn, const char *data, size_t len)
 
     /* ---------- 修复点：手动创建并添加玩家 ---------- */
     // 4. 创建玩家对象 (不在 Manager 内部创建)
-    auto player = std::make_shared<Player>(playerId);
+    // auto player = std::make_shared<Player>(playerId);
 
     // 从数据库加载
     if (!PlayerLoader::Load(playerId, *player))
