@@ -43,37 +43,61 @@ void DBWorker::Stop()
 }
 void DBWorker::Run()
 {
-    // 即使 running_ 已经为 false，只要队列里还有任务，我们就应该继续处理
-    // 直到收到明确的“退出指令（nullptr）”
+    // 这里的批次大小 32 是平衡延迟和吞吐量的经验值
+    constexpr size_t kMaxBatchSize = 32;
+
     while (true)
     {
-        // 1. 阻塞等待任务。如果此时 Stop() 发送了 nullptr，wait 会被唤醒。
-        auto task = SaveQueue::Instance().Pop(shardIndex_);
-
-        // 2. 检查“毒丸”。这是唯一的退出出口。
-        if (!task)
+        // 1. 批量获取任务，减少队列锁竞争
+        auto tasks = SaveQueue::Instance().PopBatch(shardIndex_, kMaxBatchSize);
+        if (tasks.empty())
         {
-            LOG_INFO("DBWorker {} received stop signal, exiting...", shardIndex_);
-            break;
+            // 如果队列暂时为空，PopBatch 内部应该有 condition_variable 等待
+            // 这里加上判断是为了防御性编程
+            continue;
         }
 
-        // 3. 正常的业务执行
+        // 2. 为这一批任务获取一次数据库连接
         auto conn = MySQLConnectionPool::Instance().Acquire();
-        if (conn)
+        if (!conn)
         {
+            LOG_ERROR("DBWorker {} failed to acquire MySQL connection", shardIndex_);
+            // 简单规避，防止因连接池耗尽导致的死循环 CPU 占用
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            continue;
+        }
+
+        // 3. 顺序执行批次内的任务
+        for (auto &task : tasks)
+        {
+            // 4. 核心：检查是否收到退出指令
+            if (!task)
+            {
+                LOG_INFO("DBWorker {} received stop signal, exiting...", shardIndex_);
+                return; // 直接退出 Run 函数，结束线程
+            }
+
+            // 5. 执行具体的 SQL 逻辑并统计耗时
             auto start = std::chrono::high_resolution_clock::now();
 
-            task->Execute(conn.get());
+            try
+            {
+                task->Execute(conn.get());
+            }
+            catch (const std::exception &e)
+            {
+                LOG_ERROR("DBWorker {} task execution error: {}", shardIndex_, e.what());
+            }
 
             auto end = std::chrono::high_resolution_clock::now();
 
-            uint64_t us =
-                std::chrono::duration_cast<std::chrono::microseconds>(
-                    end - start)
-                    .count();
+            uint64_t us = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
+            // 6. 更新实时监控指标
             ServerMetrics::Instance().AddDBLatency(us);
             ServerMetrics::Instance().IncDBTaskFinished();
         }
+
+        // 出了作用域后，conn (unique_ptr) 会自动归还给连接池
     }
 }

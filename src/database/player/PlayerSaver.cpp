@@ -101,6 +101,9 @@ bool PlayerSaver::SaveInventory(MySQLConnection *conn, Player &player)
         first = false;
     }
 
+    if (first)
+        return true;
+
     sql += " ON DUPLICATE KEY UPDATE count=VALUES(count)";
 
     return conn->Execute(sql);

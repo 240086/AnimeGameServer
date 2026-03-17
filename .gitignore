@@ -64,3 +64,5 @@ devlogs
 include/network/protocol/proto/*.pb.cc
 include/network/protocol/proto/*.pb.h
 include/network/protocol/generated/
+
+PerformanceAudit.md

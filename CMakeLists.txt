@@ -28,6 +28,7 @@ set(PROTO_DIR "include/network/protocol/proto")
 set(PROTO_FILES 
     "${PROTO_DIR}/login.proto"
     "${PROTO_DIR}/gacha.proto"
+    "${PROTO_DIR}/heartbeat.proto"
 )
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
 
