@@ -61,12 +61,13 @@ bool PlayerSaver::Save(MySQLConnection *conn,
 bool PlayerSaver::SaveCurrency(MySQLConnection *conn, Player &player)
 {
     uint64_t pid = player.GetId();
+    // 假设你的 Currency 类能返回类型和金额映射，现在先保证 SQL 严谨
     uint64_t amount = player.GetCurrency().Get();
 
     std::string sql =
         "INSERT INTO player_currency(player_id, currency_type, amount) VALUES(" +
         std::to_string(pid) + ", 1, " + std::to_string(amount) +
-        ") ON DUPLICATE KEY UPDATE amount=VALUES(amount)";
+        ") ON DUPLICATE KEY UPDATE amount=" + std::to_string(amount); // 显式传值更稳
 
     return conn->Execute(sql);
 }

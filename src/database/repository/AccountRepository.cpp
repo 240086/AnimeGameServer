@@ -50,11 +50,14 @@ std::optional<uint64_t> AccountRepository::GetAccountId(
     const auto safeUsername = EscapeSqlLiteral(rawConn, username);
     const auto safePassword = EscapeSqlLiteral(rawConn, password);
 
+    // 🔥 修正重点：
+    // 1. 将 player_id 改为 id (匹配你数据库中的主键名)
+    // 2. 将 password 改为 password_hash (匹配你 Python 灌数脚本中的字段名)
     std::string sql =
-        "SELECT player_id FROM accounts "
+        "SELECT id FROM accounts "
         "WHERE username='" +
         safeUsername +
-        "' AND password='" + safePassword + "' LIMIT 1";
+        "' AND password_hash='" + safePassword + "' LIMIT 1";
 
     auto result = conn->Query(sql);
 
@@ -63,10 +66,17 @@ std::optional<uint64_t> AccountRepository::GetAccountId(
 
     auto row = result->FetchRow();
 
-    if (!row)
+    if (!row || !row[0]) // 增加 row[0] 的判空保护
         return std::nullopt;
 
-    uint64_t playerId = std::stoull(row[0]);
-
-    return playerId;
+    try
+    {
+        uint64_t playerId = std::stoull(row[0]);
+        return playerId;
+    }
+    catch (const std::exception &e)
+    {
+        LOG_ERROR("GetAccountId: stoull failed for id={}, error={}", row[0], e.what());
+        return std::nullopt;
+    }
 }
