@@ -4,9 +4,19 @@
 MySQLConnection::MySQLConnection()
 {
     conn_ = mysql_init(nullptr);
+    if (!conn_)
+        return;
+
     // 设置自动重连选项，防止空闲连接被 MySQL Server 断开
     bool reconnect = true;
     mysql_options(conn_, MYSQL_OPT_RECONNECT, &reconnect);
+
+    unsigned int connectTimeoutSec = 2;
+    unsigned int readTimeoutSec = 2;
+    unsigned int writeTimeoutSec = 2;
+    mysql_options(conn_, MYSQL_OPT_CONNECT_TIMEOUT, &connectTimeoutSec);
+    mysql_options(conn_, MYSQL_OPT_READ_TIMEOUT, &readTimeoutSec);
+    mysql_options(conn_, MYSQL_OPT_WRITE_TIMEOUT, &writeTimeoutSec);
 }
 
 MySQLConnection::~MySQLConnection()
@@ -22,6 +32,9 @@ bool MySQLConnection::Connect(
     const std::string &password,
     const std::string &database)
 {
+    if (!conn_)
+        return false;
+
     auto res = mysql_real_connect(
         conn_,
         host.c_str(),

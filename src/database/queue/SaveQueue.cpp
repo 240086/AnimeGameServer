@@ -67,6 +67,31 @@ std::unique_ptr<DatabaseTask> SaveQueue::Pop(size_t shardIndex)
     return task;
 }
 
+std::vector<std::unique_ptr<DatabaseTask>> SaveQueue::PopBatch(size_t shardIndex, size_t maxBatchSize)
+{
+    std::vector<std::unique_ptr<DatabaseTask>> tasks;
+
+    if (maxBatchSize == 0)
+        return tasks;
+
+    auto &s = *shards_[shardIndex];
+
+    std::unique_lock<std::mutex> lock(s.mutex);
+
+    s.cond.wait(lock, [&]
+                { return !s.queue.empty(); });
+
+    tasks.reserve(maxBatchSize);
+
+    while (!s.queue.empty() && tasks.size() < maxBatchSize)
+    {
+        tasks.push_back(std::move(s.queue.front()));
+        s.queue.pop();
+    }
+
+    return tasks;
+}
+
 size_t SaveQueue::GetShardCount() const
 {
     return SHARD_COUNT;

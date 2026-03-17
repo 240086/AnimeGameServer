@@ -14,6 +14,11 @@ bool MySQLConnectionPool::Init(
     const std::string &db,
     size_t poolSize)
 {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    if (initialized_)
+        return true;
+
     for (size_t i = 0; i < poolSize; ++i)
     {
         auto conn = std::make_unique<MySQLConnection>();
@@ -24,6 +29,7 @@ bool MySQLConnectionPool::Init(
         pool_.push(std::move(conn));
     }
 
+    initialized_ = true;
     return true;
 }
 

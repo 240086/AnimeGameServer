@@ -43,28 +43,28 @@ void DBWorker::Stop()
 }
 void DBWorker::Run()
 {
-    // 即使 running_ 已经为 false，只要队列里还有任务，我们就应该继续处理
-    // 直到收到明确的“退出指令（nullptr）”
+    constexpr size_t kMaxBatchSize = 32;
+
     while (true)
     {
-        // 1. 阻塞等待任务。如果此时 Stop() 发送了 nullptr，wait 会被唤醒。
-        auto task = SaveQueue::Instance().Pop(shardIndex_);
+        auto tasks = SaveQueue::Instance().PopBatch(shardIndex_, kMaxBatchSize);
+        if (tasks.empty())
+            continue;
 
-        // 2. 检查“毒丸”。这是唯一的退出出口。
-        if (!task)
-        {
-            LOG_INFO("DBWorker {} received stop signal, exiting...", shardIndex_);
-            break;
-        }
-
-        // 3. 正常的业务执行
         auto conn = MySQLConnectionPool::Instance().Acquire();
-        if (conn)
+        if (!conn)
+            continue;
+
+        for (auto &task : tasks)
         {
+            if (!task)
+            {
+                LOG_INFO("DBWorker {} received stop signal, exiting...", shardIndex_);
+                return;
+            }
+
             auto start = std::chrono::high_resolution_clock::now();
-
             task->Execute(conn.get());
-
             auto end = std::chrono::high_resolution_clock::now();
 
             uint64_t us =

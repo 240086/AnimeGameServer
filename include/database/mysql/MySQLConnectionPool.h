@@ -4,6 +4,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <memory>
+#include <atomic>
 
 #include "database/mysql/MySQLConnection.h"
 
@@ -27,4 +28,5 @@ private:
 
     std::mutex mutex_;
     std::condition_variable cond_;
+    std::atomic<bool> initialized_{false};
 };

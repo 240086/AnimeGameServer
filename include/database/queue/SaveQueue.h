@@ -18,6 +18,7 @@ public:
     void PushToShard(size_t shardIndex, std::unique_ptr<DatabaseTask> task);
 
     std::unique_ptr<DatabaseTask> Pop(size_t shardIndex);
+    std::vector<std::unique_ptr<DatabaseTask>> PopBatch(size_t shardIndex, size_t maxBatchSize);
 
     size_t GetShardCount() const;
 

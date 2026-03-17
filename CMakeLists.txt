@@ -15,11 +15,9 @@ find_package(yaml-cpp REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(GTest REQUIRED)
 find_package(Protobuf REQUIRED)
-find_package(absl REQUIRED CONFIG)
 find_package(PkgConfig REQUIRED)
 
 # 使用 PkgConfig 查找 Protobuf, MySQL (MariaDB) 和 Redis (hiredis)
-pkg_check_modules(PROTOBUF REQUIRED protobuf)
 pkg_check_modules(MARIADB REQUIRED libmariadb)
 pkg_check_modules(HIREDIS REQUIRED hiredis) # <--- 新增：查找 hiredis 库
 
@@ -28,6 +26,7 @@ set(PROTO_DIR "include/network/protocol/proto")
 set(PROTO_FILES 
     "${PROTO_DIR}/login.proto"
     "${PROTO_DIR}/gacha.proto"
+    "${PROTO_DIR}/heartbeat.proto"
 )
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
 
