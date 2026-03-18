@@ -45,10 +45,15 @@ int main()
         return -1;
     }
 
-    size_t cpu = std::thread::hardware_concurrency();
+    size_t cpu = std::max<size_t>(2, std::thread::hardware_concurrency());
 
-    size_t ioThreads = std::max<size_t>(2, cpu / 2);
+    // IO 线程不要硬编码为 CPU/2，优先使用配置项，压测时可快速放大网络处理能力
+    size_t ioThreads = std::max<size_t>(
+        2,
+        static_cast<size_t>(Config::Instance().GetWorkerThreads()));
+
     size_t logicThreads = cpu;
+    LOG_INFO("Thread config: ioThreads={} logicThreads={}", ioThreads, logicThreads);
 
     // 2. 启动逻辑引擎 (重要修复：必须先启动 ActorSystem)
     // 建议分配 4 个线程处理逻辑，或者根据 CPU 核心数分配
