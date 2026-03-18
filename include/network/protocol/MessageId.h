@@ -19,6 +19,7 @@ enum MessageId : uint16_t
     // 例如：玩家在其他端登录导致被踢、系统公告、货币变更异步通知
     MSG_S2C_NOTIFY_KICK = 2001,
     MSG_S2C_NOTIFY_CURRENCY = 2002,
+    MSG_S2C_NOTIFY_INVENTORY = 2003,
 
     // --- [9000 ~ 9999] Error Codes ---
     MSG_S2C_ERROR_COMMON = 9000,            // 通用错误

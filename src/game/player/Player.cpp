@@ -3,6 +3,7 @@
 Player::Player(PlayerId id)
     : id_(id)
 {
+    // 假设这些组件需要持有 Player 指针用于触发 MarkDirty
     inventory_.SetOwner(this);
     history_.SetOwner(this);
 }
@@ -29,15 +30,19 @@ Currency &Player::GetCurrency()
 
 void Player::MarkDirty(PlayerDirtyFlag flag)
 {
+    // 使用 fetch_or 保证原子性，多个线程同时修改不同标记位不会互相覆盖
     dirtyFlags_.fetch_or(static_cast<uint32_t>(flag), std::memory_order_relaxed);
 }
 
 uint32_t Player::FetchDirtyFlags()
 {
+    // 使用 exchange(0) 保证清空操作是原子的
+    // 使用 acq_rel 建立内存屏障，确保在清除标记前，逻辑层的所有修改已经写入内存
     return dirtyFlags_.exchange(0, std::memory_order_acq_rel);
 }
 
 bool Player::IsDirty() const
 {
+    // 仅仅读取，不需要高强度的屏障
     return dirtyFlags_.load(std::memory_order_relaxed) != 0;
 }

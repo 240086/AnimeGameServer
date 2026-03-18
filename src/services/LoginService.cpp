@@ -113,7 +113,7 @@ void LoginService::HandleLogin(Connection *conn, const char *data, size_t len)
                     uint64_t sid = connPtr->GetSessionId();
                     std::shared_ptr<Session> session;
 
-                    // 绑定或创建 Session
+                    // --- Session 获取或创建 ---
                     if (sid == 0)
                     {
                         session = SessionManager::Instance().CreateSession();
@@ -124,27 +124,36 @@ void LoginService::HandleLogin(Connection *conn, const char *data, size_t len)
                     {
                         session = SessionManager::Instance().GetSession(sid);
                         if (!session)
-                        {
-                            LOG_ERROR("Session not found for sid={} during login", sid);
                             return;
-                        }
                     }
 
-                    // 顶号逻辑占位
+                    // --- 🔥 顶号与唯一性控制 ---
+                    // 1. 检查是否有旧玩家实例在内存
                     auto oldPlayer = PlayerManager::Instance().GetPlayer(playerId);
                     if (oldPlayer)
                     {
-                        LOG_WARN("Player {} already login, kicking old one...", playerId);
-                        // TODO: Implement Kick Logic
+                        LOG_WARN("Player {} re-login detected, processing kick...", playerId);
+                        // 找到旧玩家对应的 Session 并关闭它
+                        // 注意：Logout 内部会处理数据保存
+                        PlayerManager::Instance().Logout(playerId);
+
+                        // TODO: 如果有条件，发送一个“你被顶号了”的消息给旧连接
                     }
 
-                    // 正式上线
+                    // 2. 正式登录（进入 PlayerManager 内存容器）
+                    if (!PlayerManager::Instance().Login(playerId, player))
+                    {
+                        LOG_ERROR("Player {} Login to PlayerManager failed", playerId);
+                        SendSimpleMessage(connPtr.get(), MSG_S2C_ERROR_COMMON);
+                        return;
+                    }
+
+                    // 3. 绑定组件
                     auto actor = std::make_shared<PlayerActor>(player);
                     session->BindPlayer(player);
                     session->BindActor(actor);
-                    PlayerManager::Instance().AddPlayer(player);
 
-                    // 构建并发送响应包
+                    // --- 构建回包 ---
                     anime::LoginResponse resp_pb;
                     resp_pb.set_player_id(playerId);
                     resp_pb.set_currency(player->GetCurrency().Get());
@@ -158,7 +167,7 @@ void LoginService::HandleLogin(Connection *conn, const char *data, size_t len)
                         connPtr->SendPacket(packet);
                     }
 
-                    LOG_INFO("Player {} login success via Async-Path, sid={}", playerId, sid);
+                    LOG_INFO("Player {} login success, sid={}", playerId, sid);
                 });
         });
 }

@@ -17,6 +17,7 @@ find_package(GTest REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(absl REQUIRED CONFIG)
 find_package(PkgConfig REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 # 使用 PkgConfig 查找 Protobuf, MySQL (MariaDB) 和 Redis (hiredis)
 pkg_check_modules(PROTOBUF REQUIRED protobuf)
@@ -57,6 +58,7 @@ target_link_libraries(AnimeGameServerCore
     spdlog::spdlog
     yaml-cpp::yaml-cpp
     Boost::system
+    nlohmann_json::nlohmann_json
     ${Protobuf_LIBRARIES}
     ${MARIADB_LIBRARIES}
     ${HIREDIS_LIBRARIES}    # <--- 新增：链接 hiredis 库
@@ -67,18 +69,7 @@ add_executable(GameServer src/main.cpp)
 target_link_libraries(GameServer 
     PRIVATE 
     AnimeGameServerCore
-    ${PROTOBUF_LIBRARIES}
-    ${MARIADB_LIBRARIES}
-    ${HIREDIS_LIBRARIES}    # <--- 新增
-)
-
-# --- 7. 测试程序 ---
-file(GLOB_RECURSE TEST_FILES CONFIGURE_DEPENDS tests/*.cpp)
-add_executable(TestRunner ${TEST_FILES})
-target_link_libraries(TestRunner 
-    PRIVATE 
-    AnimeGameServerCore
-    GTest::gtest
+    nlohmann_json::nlohmann_json
     ${PROTOBUF_LIBRARIES}
     ${MARIADB_LIBRARIES}
     ${HIREDIS_LIBRARIES}    # <--- 新增
@@ -87,9 +78,7 @@ target_link_libraries(TestRunner
 # --- 8. 平台相关配置 ---
 if(WIN32)
     target_link_libraries(GameServer PRIVATE ws2_32 mswsock)
-    target_link_libraries(TestRunner PRIVATE ws2_32 mswsock)
     target_compile_definitions(GameServer PRIVATE _WIN32_WINNT=0x0601)
-    target_compile_definitions(TestRunner PRIVATE _WIN32_WINNT=0x0601)
     
     # 针对 Windows 下 hiredis 的特殊宏定义，防止符号导出/兼容性问题
     target_compile_definitions(AnimeGameServerCore PUBLIC HIREDIS_WIN)

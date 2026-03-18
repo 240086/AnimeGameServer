@@ -19,6 +19,7 @@
 #include "database/queue/SaveQueue.h"
 #include "database/task/SavePlayerTask.h"
 #include "common/metrics/ServerMetrics.h"
+#include "database/redis/RedisPool.h"
 
 int main()
 {
@@ -44,6 +45,19 @@ int main()
         LOG_ERROR("Failed to initialize MySQL Connection Pool");
         return -1;
     }
+
+    bool redisOk = RedisPool::Instance().Init(
+        Config::Instance().GetRedisHost(),
+        Config::Instance().GetRedisPort(),
+        Config::Instance().GetRedisPoolSize());
+
+    if (!redisOk)
+    {
+        LOG_ERROR("Failed to initialize Redis Pool! Server exiting...");
+        return -1;
+    }
+    LOG_INFO("RedisPool initialized successfully at {}:{}",
+             Config::Instance().GetRedisHost(), Config::Instance().GetRedisPort());
 
     size_t cpu = std::max<size_t>(2, std::thread::hardware_concurrency());
 

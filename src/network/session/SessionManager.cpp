@@ -47,40 +47,29 @@ std::shared_ptr<Session> SessionManager::GetSession(uint64_t id)
 void SessionManager::RemoveSession(uint64_t id)
 {
     size_t idx = GetBucketIndex(id);
-
     std::shared_ptr<Session> session;
 
     {
         std::lock_guard<std::mutex> lock(buckets_[idx].mutex);
-
-        auto &map = buckets_[idx].sessions;
-
-        auto it = map.find(id);
-
-        if (it == map.end())
+        auto it = buckets_[idx].sessions.find(id);
+        if (it == buckets_[idx].sessions.end())
             return;
 
         session = it->second;
-
-        map.erase(it);
+        buckets_[idx].sessions.erase(it);
     }
 
     if (session)
-    { // 1. 先通过 Session 拿到关联的 Player
+    {
         auto player = session->GetPlayer();
         if (player)
         {
-            auto removedPlayer = PlayerManager::Instance().RemovePlayer(player->GetId());
-
-            if (removedPlayer)
-            {
-                PlayerManager::Instance().AsyncSavePlayer(removedPlayer);
-            }
-
-            LOG_INFO("Player {} session {} closed. Async save scheduled.", player->GetId(), id);
+            // 🔥 核心变更：调用 Logout 闭环
+            // Logout 内部会执行：1. 从 PlayerManager 移除 2. 触发 AsyncSavePlayer(true)
+            PlayerManager::Instance().Logout(player->GetId());
+            LOG_INFO("Session {} removed, Player {} logged out and save scheduled.", id, player->GetId());
         }
 
-        // 3. 执行解绑，彻底清理 Session 内部持有的 Actor 引用
         session->UnbindActor();
         session->UnbindPlayer();
     }
@@ -92,52 +81,31 @@ void SessionManager::CheckTimeout()
     auto now = std::chrono::steady_clock::now();
     std::vector<std::shared_ptr<Session>> to_remove;
 
+    // 1. 筛选超时 Session
     for (size_t i = 0; i < BUCKET_COUNT; ++i)
     {
-        // 1. 锁内只做筛选，快速拷贝出超时的 Session 指针
+        std::lock_guard<std::mutex> lock(buckets_[i].mutex);
+        for (auto it = buckets_[i].sessions.begin(); it != buckets_[i].sessions.end();)
         {
-            std::lock_guard<std::mutex> lock(buckets_[i].mutex);
-            auto &session_map = buckets_[i].sessions;
-
-            for (auto it = session_map.begin(); it != session_map.end();)
+            if (std::chrono::duration_cast<std::chrono::seconds>(now - it->second->GetLastHeartbeat()).count() > 180)
             {
-                auto session = it->second;
-                auto diff = std::chrono::duration_cast<std::chrono::seconds>(
-                                now - session->GetLastHeartbeat())
-                                .count();
-
-                if (diff > 180)
-                {
-                    to_remove.push_back(session);
-                    // 2. 注意：这里直接 erase 还是在 RemoveSession 里 erase？
-                    // 建议：此处直接标记，由下方的 Close 触发事件回调
-                    it = session_map.erase(it);
-                }
-                else
-                {
-                    ++it;
-                }
+                to_remove.push_back(it->second);
+                it = buckets_[i].sessions.erase(it);
             }
+            else
+                ++it;
         }
     }
 
-    // 3. 锁外执行耗时或可能引起回调的操作
+    // 2. 锁外执行踢人逻辑
     for (auto &session : to_remove)
     {
-        LOG_WARN("Session {} timeout (180s), kicking player.", session->GetSessionId());
-
-        // 触发最终存盘（通过回调或显式调用）
         auto player = session->GetPlayer();
         if (player)
         {
-            auto removedPlayer = PlayerManager::Instance().RemovePlayer(player->GetId());
-
-            if (removedPlayer)
-            {
-                PlayerManager::Instance().AsyncSavePlayer(removedPlayer);
-            }
-
-            LOG_INFO("Player {} session {} closed. Async save scheduled.", player->GetId(), session->GetSessionId());
+            LOG_WARN("Session {} timeout, kicking player {}.", session->GetSessionId(), player->GetId());
+            // 🔥 统一走 Logout 接口
+            PlayerManager::Instance().Logout(player->GetId());
         }
 
         auto conn = session->GetConnection();
@@ -146,5 +114,6 @@ void SessionManager::CheckTimeout()
 
         session->UnbindActor();
         session->UnbindPlayer();
+        ServerMetrics::Instance().DecSession();
     }
 }

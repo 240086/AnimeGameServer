@@ -22,6 +22,7 @@ public:
 
     std::string GetRedisHost() const;
     int GetRedisPort() const;
+    int GetRedisPoolSize() const;
 
     std::string GetConfigDir() const;
 

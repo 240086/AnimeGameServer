@@ -69,6 +69,12 @@ int Config::GetRedisPort() const
     return root["redis"]["port"].as<int>();
 }
 
+int Config::GetRedisPoolSize() const
+{
+    // 默认给 8 个，压测时可以根据硬件向上调整
+    return root["redis"]["pool_size"].as<int>();
+}
+
 std::string Config::GetConfigDir() const
 {
     return "config/";
