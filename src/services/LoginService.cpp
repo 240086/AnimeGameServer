@@ -49,12 +49,33 @@ void LoginService::HandleLogin(Connection *conn, const char *data, size_t len)
     if (!conn)
         return;
 
-    // 1. 获取 Session（确保连接合法）
-    auto session = SessionManager::Instance().GetSession(conn->GetSessionId());
-    if (!session)
+    // 1. 获取或创建 Session（关键修复）
+    std::shared_ptr<Session> session;
+
+    uint64_t sid = conn->GetSessionId();
+
+    if (sid == 0)
     {
-        LOG_ERROR("session not found for sessionId={}", conn->GetSessionId());
-        return;
+        // 🔥 首次登录：创建 Session
+        session = SessionManager::Instance().CreateSession();
+
+        session->BindConnection(conn->shared_from_this());
+
+        conn->SetSessionId(session->GetSessionId());
+
+        LOG_INFO("New session created sid={} for conn={}",
+                 session->GetSessionId(),
+                 conn->GetConnectionId());
+    }
+    else
+    {
+        session = SessionManager::Instance().GetSession(sid);
+
+        if (!session)
+        {
+            LOG_ERROR("session not found for sessionId={}", sid);
+            return;
+        }
     }
 
     // 2. 解析 Protobuf 请求

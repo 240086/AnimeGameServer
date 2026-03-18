@@ -33,4 +33,6 @@ private:
     std::condition_variable cond_;
 
     std::atomic<bool> stop_;
+
+    std::atomic<size_t> task_count_{0}; // 实时监控积压任务数
 };

@@ -38,7 +38,7 @@ void Logger::Init()
             sinks.begin(),
             sinks.end(),
             spdlog::thread_pool(),
-            spdlog::async_overflow_policy::block // 如果队列满了，阻塞等待（保证日志不丢）
+            spdlog::async_overflow_policy::overrun_oldest // 如果队列满了，阻塞等待（保证日志不丢）
         );
 
         // 5. 设置全局参数

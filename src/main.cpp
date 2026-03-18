@@ -69,9 +69,9 @@ int main()
     // IO 线程池：负责网络读写与 Protobuf 解析
     AsioContextPool contextPool(ioThreads);
 
-    DBWorkerPool::Instance().Start(SaveQueue::Instance().GetShardCount());
+    DBWorkerPool::Instance().Start(SaveQueue::Instance().GetShardCount() * 2);
 
-    LOG_INFO("DBWorkerPool started with {} threads", SaveQueue::Instance().GetShardCount());
+    LOG_INFO("DBWorkerPool started with {} threads", SaveQueue::Instance().GetShardCount() * 2);
 
     // 5. 创建服务器
     auto server = std::make_shared<TcpServer>(

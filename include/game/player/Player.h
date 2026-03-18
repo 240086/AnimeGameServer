@@ -30,6 +30,22 @@ public:
 
     bool IsDirty() const;
 
+    // ✅ 尝试进入“保存中状态”
+    bool TryMarkSaving()
+    {
+        bool expected = false;
+        return saving_.compare_exchange_strong(
+            expected,
+            true,
+            std::memory_order_acq_rel);
+    }
+
+    // ✅ 保存完成后调用
+    void ClearSaving()
+    {
+        saving_.store(false, std::memory_order_release);
+    }
+
 private:
     PlayerId id_;
 
@@ -38,4 +54,6 @@ private:
     Currency currency_;
 
     std::atomic<uint32_t> dirtyFlags_{0};
+
+    std::atomic<bool> saving_{false};
 };

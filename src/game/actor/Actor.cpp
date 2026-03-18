@@ -6,7 +6,11 @@ void Actor::Post(Task task)
     if (IsStopped())
         return;
 
-    mailbox_.Push(std::move(task));
+    if (!mailbox_.Push(std::move(task)))
+    {
+        // TODO: 可以加日志或统计
+        return;
+    }
 
     if (TrySchedule())
     {

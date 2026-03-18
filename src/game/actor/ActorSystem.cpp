@@ -46,15 +46,23 @@ void ActorSystem::Schedule(std::shared_ptr<Actor> actor)
     if (!running_.load() || !actor)
         return;
 
-    // 核心：基于 Actor 内存地址或 ID 进行哈希，路由到固定分片
-    // 保证同一个 Actor 永远被同一个分片处理
-    size_t shardIndex = reinterpret_cast<uintptr_t>(actor.get()) % shards_.size();
+    // 🔥 使用业务ID路由
+    size_t shardIndex = actor->GetRoutingKey() % shards_.size();
     auto &shard = shards_[shardIndex];
 
     {
         std::lock_guard<std::mutex> lock(shard.mutex);
+
+        // 🔥 限流（防雪崩）
+        constexpr size_t MAX_QUEUE_SIZE = 10000;
+        if (shard.ready_queue.size() > MAX_QUEUE_SIZE)
+        {
+            return; // 可以后续加日志
+        }
+
         shard.ready_queue.push(std::move(actor));
     }
+
     shard.cond.notify_one();
 }
 
@@ -84,7 +92,7 @@ void ActorSystem::Worker(int shardIndex)
         if (actor)
         {
             // 极简主义：Worker 只管触发，状态机全权交由 Actor 内部控制
-            actor->Process(32);
+            actor->Process(64);
         }
     }
 }

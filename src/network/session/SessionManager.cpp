@@ -70,9 +70,14 @@ void SessionManager::RemoveSession(uint64_t id)
         auto player = session->GetPlayer();
         if (player)
         {
-            // 2. 同步清理 PlayerManager，打破 shared_ptr 计数
-            PlayerManager::Instance().RemovePlayerWithSave(player->GetId());
-            LOG_INFO("Player {} session {} closed. Final save task pushed.", player->GetId(), id);
+            auto removedPlayer = PlayerManager::Instance().RemovePlayer(player->GetId());
+
+            if (removedPlayer)
+            {
+                PlayerManager::Instance().AsyncSavePlayer(removedPlayer);
+            }
+
+            LOG_INFO("Player {} session {} closed. Async save scheduled.", player->GetId(), id);
         }
 
         // 3. 执行解绑，彻底清理 Session 内部持有的 Actor 引用
@@ -125,7 +130,14 @@ void SessionManager::CheckTimeout()
         auto player = session->GetPlayer();
         if (player)
         {
-            PlayerManager::Instance().RemovePlayerWithSave(player->GetId());
+            auto removedPlayer = PlayerManager::Instance().RemovePlayer(player->GetId());
+
+            if (removedPlayer)
+            {
+                PlayerManager::Instance().AsyncSavePlayer(removedPlayer);
+            }
+
+            LOG_INFO("Player {} session {} closed. Async save scheduled.", player->GetId(), session->GetSessionId());
         }
 
         auto conn = session->GetConnection();

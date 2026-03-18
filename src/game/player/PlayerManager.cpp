@@ -31,11 +31,49 @@ std::shared_ptr<Player> PlayerManager::GetPlayer(uint64_t uid)
     return (it != map.end()) ? it->second : nullptr;
 }
 
-void PlayerManager::RemovePlayer(uint64_t uid)
+std::shared_ptr<Player> PlayerManager::RemovePlayer(uint64_t uid)
 {
     size_t idx = GetBucketIndex(uid);
-    std::lock_guard<std::mutex> lock(buckets_[idx].mutex);
-    buckets_[idx].players.erase(uid);
+    std::shared_ptr<Player> player = nullptr;
+
+    {
+        std::lock_guard<std::mutex> lock(buckets_[idx].mutex);
+        auto it = buckets_[idx].players.find(uid);
+        if (it != buckets_[idx].players.end())
+        {
+            player = it->second;
+            buckets_[idx].players.erase(it);
+        }
+    }
+
+    return player; // ✅ 返回 shared_ptr
+}
+
+void PlayerManager::AsyncSavePlayer(std::shared_ptr<Player> player)
+{
+    if (!player)
+        return;
+
+    // ⚠️ 防止重复保存（关键优化）
+    bool expected = false;
+    if (!player->TryMarkSaving()) // 需要你在 Player 里实现
+        return;
+
+    uint32_t flags = player->FetchDirtyFlags() |
+                     static_cast<uint32_t>(PlayerDirtyFlag::ALL);
+
+    // ⚠️ 如果没有任何脏数据，也不需要保存
+    if (flags == 0)
+    {
+        player->ClearSaving();
+        return;
+    }
+
+    auto task = std::make_unique<SavePlayerTask>(player, flags);
+
+    SaveQueue::Instance().Push(player->GetId(), std::move(task));
+
+    LOG_INFO("Player {} async save submitted.", player->GetId());
 }
 
 size_t PlayerManager::OnlineCount()
@@ -108,32 +146,5 @@ void PlayerManager::OnAutoSaveTick()
         SaveQueue::Instance().Push(player->GetId(), std::move(task));
 
         saveCount++;
-    }
-}
-
-void PlayerManager::RemovePlayerWithSave(uint64_t uid)
-{
-    size_t idx = GetBucketIndex(uid);
-    std::shared_ptr<Player> player = nullptr;
-
-    {
-        std::lock_guard<std::mutex> lock(buckets_[idx].mutex);
-        auto it = buckets_[idx].players.find(uid);
-        if (it != buckets_[idx].players.end())
-        {
-            player = it->second;
-            buckets_[idx].players.erase(it);
-        }
-    }
-
-    // 如果玩家存在，执行最后一次全量存盘（强制所有位）
-    if (player)
-    {
-        // 下线存盘通常建议覆盖所有标志位，确保万无一失
-        uint32_t flags = player->FetchDirtyFlags() | static_cast<uint32_t>(PlayerDirtyFlag::ALL);
-        auto task = std::make_unique<SavePlayerTask>(player, flags);
-        SaveQueue::Instance().Push(player->GetId(), std::move(task));
-
-        LOG_INFO("Player {} removed and final save task pushed.", uid);
     }
 }

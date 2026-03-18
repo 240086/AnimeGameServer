@@ -4,7 +4,7 @@
 #include <atomic>
 #include <memory>
 
-class Actor : public std::enable_shared_from_this<Actor> // 1. 必须继承这个
+class Actor : public std::enable_shared_from_this<Actor>
 {
 public:
     using Task = Mailbox::Task;
@@ -12,7 +12,6 @@ public:
 
     void Post(Task task);
 
-    // Process 不再需要内部 SetScheduled，交给调度器或采用双重检查
     void Process(int maxTasks = 32);
 
     bool HasMoreTasks();
@@ -21,6 +20,9 @@ public:
 
     void Stop() { is_stopped_.store(true); }
     bool IsStopped() const { return is_stopped_.load(); }
+
+    // 🔥 新增：路由Key（核心）
+    virtual uint64_t GetRoutingKey() const = 0;
 
 private:
     Mailbox mailbox_;

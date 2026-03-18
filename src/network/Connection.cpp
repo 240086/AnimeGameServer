@@ -3,6 +3,7 @@
 #include "network/dispatcher/MessageDispatcher.h"
 #include "network/manager/ConnectionManager.h"
 #include "network/session/SessionManager.h"
+#include "common/thread/GlobalThreadPool.h"
 
 Connection::tcp::socket &Connection::GetSocket()
 {
@@ -12,15 +13,6 @@ Connection::tcp::socket &Connection::GetSocket()
 void Connection::Start()
 {
     last_active_ = std::chrono::steady_clock::now();
-
-    auto session = SessionManager::Instance().CreateSession();
-
-    session->BindConnection(shared_from_this());
-
-    session_id_ = session->GetSessionId();
-
-    LOG_INFO("connection start session={}", session_id_);
-
     DoRead();
 }
 
@@ -35,7 +27,6 @@ void Connection::DoRead()
 
     socket_.async_read_some(
         boost::asio::buffer(buffer_, sizeof(buffer_)),
-        // 优化：将读回调也绑定到 strand
         boost::asio::bind_executor(strand_,
                                    [this, self](boost::system::error_code ec, std::size_t length)
                                    {
@@ -48,7 +39,6 @@ void Connection::DoRead()
                                                recv_buffer_,
                                                [this](uint16_t msgId, const char *data, size_t len)
                                                {
-                                                   // 所有的业务分发现在都在 strand 中安全执行
                                                    HandlePacket(msgId, data, len);
                                                });
 
@@ -56,51 +46,56 @@ void Connection::DoRead()
                                        }
                                        else
                                        {
-                                           LOG_WARN("client disconnected conn={}", connection_id_);
-                                           Close(); // Close 内部有原子锁，是安全的
+                                           // 避免重复打印，只有非主动关闭时才记录 WARN
+                                           if (ec != boost::asio::error::operation_aborted)
+                                           {
+                                               LOG_WARN("client read error: {} conn={}", ec.message(), connection_id_);
+                                           }
+                                           Close();
                                        }
                                    }));
 }
 
 void Connection::SendPacket(const Packet &packet)
 {
-    if (closed_)
+    // 如果连接已关闭，直接拦截
+    if (closed_.load())
         return;
 
     auto data = std::make_shared<std::vector<char>>(packet.Serialize());
 
-    // 使用 boost::asio::post 将任务投递给 strand
-    // 这样无论哪个线程（Actor 或 IO）调用 SendPacket，后续逻辑都在 strand 序列化执行
     boost::asio::post(strand_, [this, self = shared_from_this(), data]()
                       {
-        if (write_queue_.size() > 1024) { 
-            LOG_ERROR("Write queue overflow for session {}, kicking client", session_id_);
-            Close(); 
+        if (closed_.load()) return;
+
+        // 背压控制：发送队列过长时丢弃新包，保护内存
+        if (write_queue_.size() > 1024)
+        {
+            LOG_WARN("drop packet due to queue limit, session={}", session_id_);
             return;
-}
-        bool write_in_progress = !write_queue_.empty();
+        }
+
+        bool writing = !write_queue_.empty();
         write_queue_.push_back(data);
 
-        // 如果当前没有正在进行的 async_write，则启动它
-        if (!write_in_progress) {
+        if (!writing)
+        {
             DoWrite();
         } });
 }
 
 void Connection::DoWrite()
 {
-    // 进入此函数时，已经在 strand 的保护下，无需加锁
-    if (write_queue_.empty() || closed_)
+    if (closed_.load() || write_queue_.empty())
         return;
 
     auto data = write_queue_.front();
 
-    // 关键优化：使用 boost::asio::bind_executor 将回调绑定到 strand
     boost::asio::async_write(
         socket_,
         boost::asio::buffer(*data),
         boost::asio::bind_executor(strand_,
-                                   [this, self = shared_from_this(), data](boost::system::error_code ec, std::size_t)
+                                   [this, self = shared_from_this()](boost::system::error_code ec, std::size_t)
                                    {
                                        if (ec)
                                        {
@@ -108,9 +103,15 @@ void Connection::DoWrite()
                                            return;
                                        }
 
-                                       write_queue_.pop_front();
-
+                                       // 🔥 【核心修复】：必须先判空！
+                                       // 因为在 async_write 回调排队期间，Close() 可能已经在 strand 中执行并清空了队列
                                        if (!write_queue_.empty())
+                                       {
+                                           write_queue_.pop_front();
+                                       }
+
+                                       // 继续处理队列中的下一个包
+                                       if (!write_queue_.empty() && !closed_.load())
                                        {
                                            DoWrite();
                                        }
@@ -119,36 +120,51 @@ void Connection::DoWrite()
 
 void Connection::Close()
 {
-    // 1. 原子检查，确保只关闭一次
+    // 原子标记，确保 Close 逻辑只执行一次
     if (closed_.exchange(true))
         return;
 
-    // 2. 将清理逻辑 post 到 strand，确保与正在进行的 DoWrite/DoRead 串行化
-    // 这样可以保证在销毁 session 之前，所有队列里的数据都已经处理完毕或被放弃
     boost::asio::post(strand_, [this, self = shared_from_this()]()
                       {
-        // 清理发送队列，释放内存
+        // 1. 清空发送队列，防止回调继续触发 DoWrite
         write_queue_.clear();
 
-        // 获取并停止 Actor
-        auto session = SessionManager::Instance().GetSession(session_id_);
+        // 2. 从管理器移除，断开逻辑层关联
+        ConnectionManager::Instance().RemoveConnection(connection_id_);
+
+        // 3. 关闭底层 Socket
+        if (socket_.is_open())
+        {
+            boost::system::error_code ec;
+            socket_.shutdown(tcp::socket::shutdown_both, ec);
+            socket_.close(ec);
+        }
+
+        // 4. 提取 SessionID 用于异步清理
+        uint64_t sid = session_id_;
+        if (sid != 0)
+        {
+            LOG_INFO("Connection closed, starting async cleanup for sid={}", sid);
+            AsyncCleanup(sid); // 传入提取出的 sid
+            session_id_ = 0;
+        } });
+}
+
+void Connection::AsyncCleanup(uint64_t sid)
+{
+    // 将重操作丢入全局线程池，避免阻塞网络线程
+    GlobalThreadPool::Instance().GetPool().Enqueue([sid]()
+                                                   {
+        auto session = SessionManager::Instance().GetSession(sid);
         if (session)
         {
             auto actor = session->GetActor();
             if (actor)
             {
                 actor->Stop();
-                LOG_INFO("Actor for session {} stopped.", session_id_);
+                LOG_DEBUG("Actor stopped safely in background. sid={}", sid);
             }
-        }
-
-        // 原有的清理流程
-        SessionManager::Instance().RemoveSession(session_id_);
-        ConnectionManager::Instance().RemoveConnection(connection_id_);
-
-        if (socket_.is_open())
-        {
-            boost::system::error_code ec;
-            socket_.close(ec);
+            SessionManager::Instance().RemoveSession(sid);
+            LOG_INFO("Session resources released for sid={}", sid);
         } });
 }

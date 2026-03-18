@@ -1,6 +1,8 @@
 #include "network/dispatcher/MessageDispatcher.h"
 #include "common/logger/Logger.h"
 #include "common/thread/GlobalThreadPool.h"
+#include "network/Connection.h"
+#include "network/protocol/MessageId.h"
 
 MessageDispatcher &MessageDispatcher::Instance()
 {
@@ -31,9 +33,15 @@ void MessageDispatcher::Dispatch(uint16_t msgId, Connection *conn, const char *d
 
     std::string payload(data, len);
 
-    GlobalThreadPool::Instance().GetPool().Enqueue(
-        [handler, conn, payload]()
+    // 🔥 防御：非登录包必须有 session
+    if (msgId != MSG_C2S_LOGIN)
+    {
+        if (conn->GetSessionId() == 0)
         {
-            handler(conn, payload.data(), payload.size());
-        });
+            LOG_WARN("drop msg={} no session conn={}", msgId, conn->GetConnectionId());
+            return;
+        }
+    }
+
+    handler(conn, data, len);
 }
