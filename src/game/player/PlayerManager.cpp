@@ -44,27 +44,38 @@ std::shared_ptr<Player> PlayerManager::GetPlayer(uint64_t uid)
 
 void PlayerManager::Logout(uint64_t uid)
 {
-    std::shared_ptr<Player> player = nullptr;
+    // 1. 第一步：先从容器中获取该玩家（此时不移除，只读）
+    // 这里使用分桶锁保证 Get 操作的线程安全
+    auto player = GetPlayer(uid);
+    if (!player)
+    {
+        return; // 玩家已经不在内存中，直接返回
+    }
 
-    // 1. 从内存移除
+    // 2. 第二步：🔥 CAS 原子操作抢占登出权
+    // 即使 CheckTimeout、Session 关闭、顶号逻辑同时调用 Logout
+    // 只有第一个线程能通过此检查，后续线程会在这里被拦截
+    if (!player->TryMarkLoggingOut())
+    {
+        LOG_WARN("Player {} is already in logout sequence, skipping.", uid);
+        return;
+    }
+
+    // 3. 第三步：从内存容器中正式移除
+    // 一旦执行此步，后续的 GetPlayer 将无法再搜到此实例
     size_t idx = GetBucketIndex(uid);
     {
         std::lock_guard<std::mutex> lock(buckets_[idx].mutex);
-        auto it = buckets_[idx].players.find(uid);
-        if (it != buckets_[idx].players.end())
-        {
-            player = it->second;
-            buckets_[idx].players.erase(it);
-        }
+        buckets_[idx].players.erase(uid);
     }
 
-    // 2. 登出强制存库
-    if (player)
-    {
-        LOG_INFO("Player {} logout, triggering final save", uid);
-        // 登出时 forceAll = true，确保所有内存状态刷回 Redis/DB
-        AsyncSavePlayer(player, true);
-    }
+    // 4. 第四步：执行最终存盘
+    // 此时 player 依然被当前函数持有一个 shared_ptr 引用，保证对象存活
+    LOG_INFO("Player {} logout initiated, triggering final mandatory save.", uid);
+
+    // forceAll = true 确保将内存中所有数据（不仅仅是脏数据）刷回 Redis/DB
+    // 这一步是数据一致性的终极保障
+    AsyncSavePlayer(player, true);
 }
 
 void PlayerManager::AsyncSavePlayer(std::shared_ptr<Player> player, bool forceAll)

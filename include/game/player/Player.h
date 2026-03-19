@@ -29,6 +29,18 @@ public:
     // 原子交换：取出当前所有脏标记并清空内存中的标记
     uint32_t FetchDirtyFlags();
 
+    bool IsLoggingOut() const
+    {
+        return is_logging_out_.load(std::memory_order_acquire);
+    }
+
+    bool TryMarkLoggingOut()
+    {
+        bool expected = false;
+        return is_logging_out_.compare_exchange_strong(
+            expected, true, std::memory_order_acq_rel);
+    }
+
     // 检查是否有脏数据
     bool IsDirty() const;
 
@@ -57,6 +69,18 @@ public:
         saving_.store(false, std::memory_order_release);
     }
 
+    // 🔥 设置当前合法 SessionId (由 LoginService 调用)
+    void SetSessionId(uint64_t sid)
+    {
+        session_id_.store(sid, std::memory_order_release);
+    }
+
+    // 🔥 获取当前合法 SessionId (由 Dispatcher/Actor 校验)
+    uint64_t GetSessionId() const
+    {
+        return session_id_.load(std::memory_order_acquire);
+    }
+
 private:
     PlayerId id_;
 
@@ -69,4 +93,8 @@ private:
 
     // 使用原子变量防止重复提交保存任务
     std::atomic<bool> saving_{false};
+
+    std::atomic<bool> is_logging_out_{false};
+
+    std::atomic<uint64_t> session_id_{0};
 };

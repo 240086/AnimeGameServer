@@ -29,7 +29,8 @@ AnimeGameServer
 │  │  ├─ queue
 │  │  │  └─ SaveQueue.h
 │  │  ├─ redis
-│  │  │  └─ RedisClient.h
+│  │  │  ├─ RedisClient.h
+│  │  │  └─ RedisPool.h
 │  │  ├─ repository
 │  │  │  ├─ AccountRepository.h
 │  │  │  └─ PlayerRepository.h
@@ -69,13 +70,20 @@ AnimeGameServer
 │  │  ├─ manager
 │  │  │  └─ ConnectionManager.h
 │  │  ├─ protocol
+│  │  │  ├─ IMessage.h
+│  │  │  ├─ MessageDecoder.h
 │  │  │  ├─ MessageId.h
+│  │  │  ├─ MessageMacro.h
+│  │  │  ├─ MessageRegistry.h
+│  │  │  ├─ messages
+│  │  │  │  └─ LoginMessage.h
 │  │  │  ├─ Packet.h
 │  │  │  ├─ PacketParser.h
-│  │  │  └─ proto
-│  │  │     ├─ gacha.proto
-│  │  │     ├─ heartbeat.proto
-│  │  │     └─ login.proto
+│  │  │  ├─ proto
+│  │  │  │  ├─ gacha.proto
+│  │  │  │  ├─ heartbeat.proto
+│  │  │  │  └─ login.proto
+│  │  │  └─ ProtoMessage.h
 │  │  ├─ session
 │  │  │  ├─ Session.h
 │  │  │  └─ SessionManager.h
@@ -110,7 +118,8 @@ AnimeGameServer
 │  │  ├─ queue
 │  │  │  └─ SaveQueue.cpp
 │  │  ├─ redis
-│  │  │  └─ RedisClient.cpp
+│  │  │  ├─ RedisClient.cpp
+│  │  │  └─ RedisPool.cpp
 │  │  ├─ repository
 │  │  │  ├─ AccountRepository.cpp
 │  │  │  └─ PlayerRepository.cpp
@@ -147,7 +156,8 @@ AnimeGameServer
 │  │  │  └─ ConnectionManager.cpp
 │  │  ├─ protocol
 │  │  │  ├─ Packet.cpp
-│  │  │  └─ PacketParser.cpp
+│  │  │  ├─ PacketParser.cpp
+│  │  │  └─ ProtocolRegistry.cpp
 │  │  ├─ session
 │  │  │  ├─ Session.cpp
 │  │  │  └─ SessionManager.cpp
@@ -159,9 +169,6 @@ AnimeGameServer
 │     └─ ServiceManager.cpp
 ├─ Structure.md
 ├─ tests
-│  ├─ TestMain.cpp
-│  └─ unit
-│     └─ TestCurrency.cpp
 └─ third_party
 
 ```

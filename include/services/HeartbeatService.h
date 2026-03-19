@@ -2,8 +2,11 @@
 
 #include "services/BaseService.h"
 #include <cstddef>
-class Connection;
+#include <memory>
+#include "network/protocol/IMessage.h"
 
+class Connection;
+class Player;
 class HeartbeatService : public BaseService
 {
 public:
@@ -12,8 +15,5 @@ public:
     void Init();
 
 private:
-    void HandleHeartbeat(
-        Connection *conn,
-        const char *data,
-        size_t len);
+    void HandleHeartbeat(Connection *conn, Player *player, std::shared_ptr<IMessage> msg);
 };

@@ -8,8 +8,9 @@
 
 #include "common/logger/Logger.h"
 #include "network/Connection.h"
+#include "game/player/Player.h"
 
-HeartbeatService& HeartbeatService::Instance()
+HeartbeatService &HeartbeatService::Instance()
 {
     static HeartbeatService instance;
     return instance;
@@ -19,16 +20,15 @@ void HeartbeatService::Init()
 {
     MessageDispatcher::Instance().RegisterHandler(
         MSG_C2S_HEARTBEAT,
-        [this](Connection* conn, const char* data, size_t len)
+        [this](Connection *conn, Player *player, std::shared_ptr<IMessage> msg)
         {
-            HandleHeartbeat(conn, data, len);
+            // 可以直接传 player，也可以在 Handle 中通过 conn 的 sid 去拿
+            HandleHeartbeat(conn, player, msg);
         });
 }
 
 void HeartbeatService::HandleHeartbeat(
-    Connection* conn,
-    const char* data,
-    size_t len)
+    Connection *conn, Player *player, std::shared_ptr<IMessage> msg)
 {
     if (!conn)
         return;

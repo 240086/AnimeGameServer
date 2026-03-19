@@ -2,20 +2,14 @@
 
 #include "services/BaseService.h"
 #include "network/Connection.h"
-
-struct LoginResponse
-{
-    uint64_t playerId;
-    uint64_t currency;
-};
+#include "network/protocol/IMessage.h"
 
 class LoginService : public BaseService
 {
 public:
-
-    static LoginService& Instance();
+    static LoginService &Instance();
 
     void Init() override;
 
-    void HandleLogin(Connection* conn, const char* data, size_t len);
+    void HandleLogin(Connection *conn, std::shared_ptr<IMessage> msg);
 };
