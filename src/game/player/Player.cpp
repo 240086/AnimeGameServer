@@ -46,3 +46,20 @@ bool Player::IsDirty() const
     // 仅仅读取，不需要高强度的屏障
     return dirtyFlags_.load(std::memory_order_relaxed) != 0;
 }
+void Player::LoadFrom(const Player &other)
+{
+    this->id_ = other.id_;
+
+    this->inventory_ = other.inventory_;
+    this->history_ = other.history_;
+    this->currency_ = other.currency_;
+
+    // 🔥 关键修复：重新绑定 owner
+    this->inventory_.SetOwner(this);
+    this->history_.SetOwner(this);
+
+    // 原子状态重置
+    this->dirtyFlags_.store(0, std::memory_order_relaxed);
+    this->saving_.store(false, std::memory_order_relaxed);
+    this->is_logging_out_.store(false, std::memory_order_relaxed);
+}

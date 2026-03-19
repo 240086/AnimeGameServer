@@ -22,11 +22,6 @@ void SaveQueue::Push(uint64_t playerId, std::unique_ptr<DatabaseTask> task)
 {
     size_t shard = playerId % SHARD_COUNT;
 
-    // LOG_INFO(
-    //     "SaveQueue Push player {} -> shard {}",
-    //     playerId,
-    //     shard);
-
     ServerMetrics::Instance().IncDBTask();
 
     auto &s = *shards_[shard];

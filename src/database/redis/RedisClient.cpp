@@ -1,6 +1,7 @@
 #include "database/redis/RedisClient.h"
 #include <iostream>
 #include <cstring>
+#include "common/logger/Logger.h"
 
 RedisClient::RedisClient() : ctx_(nullptr), port_(0) {}
 
@@ -136,4 +137,51 @@ bool RedisClient::Set(const std::string &key, const std::string &value, int expi
 
     freeReplyObject(reply);
     return success;
+}
+
+bool RedisClient::Del(const std::string &key)
+{
+    // 1. 加锁保护，确保 ctx_ 的并发安全
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    if (!CheckConnection())
+        return false;
+
+    if (!ctx_)
+        return false;
+
+    // 2. 修正变量名为 ctx_
+    auto reply = (redisReply *)redisCommand(ctx_, "DEL %s", key.c_str());
+
+    if (!reply)
+    {
+        LOG_ERROR("Redis DEL failed for key: {}", key);
+        return false;
+    }
+
+    // 3. 检查返回值：REDIS_REPLY_INTEGER 表示删除的 Key 数量
+    bool success = (reply->type != REDIS_REPLY_INTEGER);
+
+    freeReplyObject(reply);
+    return success;
+}
+
+void RedisClient::Execute(const std::string &command)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    if (!ctx_)
+        return;
+
+    // 修正变量名为 ctx_
+    auto reply = (redisReply *)redisCommand(ctx_, command.c_str());
+
+    if (!reply)
+    {
+        LOG_ERROR("Redis Execute failed: {}", command);
+        return;
+    }
+
+    // 释放资源
+    freeReplyObject(reply);
 }

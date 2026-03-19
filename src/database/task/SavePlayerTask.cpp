@@ -3,6 +3,7 @@
 #include "game/player/Player.h"
 #include "game/player/PlayerDirtyFlag.h"
 #include "common/logger/Logger.h"
+#include "database/redis/PlayerCache.h"
 
 SavePlayerTask::SavePlayerTask(std::shared_ptr<Player> player, uint32_t dirtyFlags)
     : player_(player),
@@ -29,6 +30,10 @@ void SavePlayerTask::Execute(MySQLConnection *conn)
         if (success)
         {
             LOG_INFO("TaskExecutor: Successfully saved player {}", pid);
+            if (!PlayerCache::Instance().Save(player_))
+            {
+                LOG_WARN("TaskExecutor: Player {} saved to MySQL but Redis update FAILED", pid);
+            }
         }
         else
         {

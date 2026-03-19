@@ -24,6 +24,9 @@ public:
     std::optional<std::string> Get(const std::string &key);
     bool Set(const std::string &key, const std::string &value, int expireSeconds = 0);
 
+    bool Del(const std::string& key);
+    void Execute(const std::string& command);
+
 private:
     bool CheckConnection();
 

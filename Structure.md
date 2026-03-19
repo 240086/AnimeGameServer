@@ -9,6 +9,7 @@ AnimeGameServer
 │  ├─ common
 │  │  ├─ config
 │  │  │  └─ Config.h
+│  │  ├─ ErrorCode.h
 │  │  ├─ logger
 │  │  │  └─ Logger.h
 │  │  ├─ metrics
@@ -29,7 +30,9 @@ AnimeGameServer
 │  │  ├─ queue
 │  │  │  └─ SaveQueue.h
 │  │  ├─ redis
+│  │  │  ├─ PlayerCache.h
 │  │  │  ├─ RedisClient.h
+│  │  │  ├─ RedisKeyManager.h
 │  │  │  └─ RedisPool.h
 │  │  ├─ repository
 │  │  │  ├─ AccountRepository.h
@@ -70,6 +73,7 @@ AnimeGameServer
 │  │  ├─ manager
 │  │  │  └─ ConnectionManager.h
 │  │  ├─ protocol
+│  │  │  ├─ ErrorSender.h
 │  │  │  ├─ IMessage.h
 │  │  │  ├─ MessageDecoder.h
 │  │  │  ├─ MessageId.h
@@ -80,9 +84,11 @@ AnimeGameServer
 │  │  │  ├─ Packet.h
 │  │  │  ├─ PacketParser.h
 │  │  │  ├─ proto
+│  │  │  │  ├─ common.proto
 │  │  │  │  ├─ gacha.proto
 │  │  │  │  ├─ heartbeat.proto
 │  │  │  │  └─ login.proto
+│  │  │  ├─ ProtocolRegistry.h
 │  │  │  └─ ProtoMessage.h
 │  │  ├─ session
 │  │  │  ├─ Session.h
@@ -92,6 +98,7 @@ AnimeGameServer
 │     ├─ BaseService.h
 │     ├─ GachaService.h
 │     ├─ HeartbeatService.h
+│     ├─ IdempotencyService.h
 │     ├─ LoginService.h
 │     └─ ServiceManager.h
 ├─ README.md
@@ -118,6 +125,7 @@ AnimeGameServer
 │  │  ├─ queue
 │  │  │  └─ SaveQueue.cpp
 │  │  ├─ redis
+│  │  │  ├─ PlayerCache.cpp
 │  │  │  ├─ RedisClient.cpp
 │  │  │  └─ RedisPool.cpp
 │  │  ├─ repository
@@ -165,6 +173,7 @@ AnimeGameServer
 │  └─ services
 │     ├─ GachaService.cpp
 │     ├─ HeartbeatService.cpp
+│     ├─ IdempotencyService.cpp
 │     ├─ LoginService.cpp
 │     └─ ServiceManager.cpp
 ├─ Structure.md

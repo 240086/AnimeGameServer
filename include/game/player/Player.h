@@ -81,6 +81,8 @@ public:
         return session_id_.load(std::memory_order_acquire);
     }
 
+    void LoadFrom(const Player &other);
+
 private:
     PlayerId id_;
 
