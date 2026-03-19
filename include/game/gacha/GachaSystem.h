@@ -7,19 +7,14 @@ class Player;
 class GachaSystem
 {
 public:
+    static GachaSystem &Instance();
 
-    static GachaSystem& Instance();
-
-    GachaItem DrawOnce(Player& player);
-    std::vector<GachaItem> DrawTen(Player& player);
-
-private:
-
-    GachaSystem();
+    GachaItem DrawOnce(Player &player, int poolId = 1);
+    std::vector<GachaItem> DrawTen(Player &player, int poolId = 1);
 
 private:
+    GachaSystem() = default;
 
-    GachaPool pool_;
-
+private:
     int default_pool_id_ = 1;
 };

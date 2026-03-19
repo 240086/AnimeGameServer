@@ -38,6 +38,7 @@ include_directories(include)
 include_directories(${PROTOBUF_INCLUDE_DIRS})
 include_directories(${MARIADB_INCLUDE_DIRS})
 include_directories(${HIREDIS_INCLUDE_DIRS}) # <--- 新增：包含 Redis 头文件路径
+include_directories(include/network/protocol/generated)
 
 # --- 4. 源文件管理 ---
 file(GLOB_RECURSE SRC_FILES CONFIGURE_DEPENDS src/*.cpp)

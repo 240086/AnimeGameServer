@@ -2,14 +2,15 @@
 #include "network/dispatcher/MessageDispatcher.h"
 #include "network/protocol/MessageId.h"
 #include "network/protocol/Packet.h"
+#include "network/protocol/ProtoMessage.h"
 #include "network/session/SessionManager.h"
 #include "game/player/PlayerManager.h"
 #include "common/logger/Logger.h"
 #include "common/thread/GlobalThreadPool.h"
-#include "network/protocol/generated/login.pb.h"
 #include "database/player/PlayerLoader.h"
 #include "database/repository/AccountRepository.h"
-#include "network/protocol/messages/LoginMessage.h"
+
+#include "login.pb.h"
 
 namespace
 {
@@ -35,8 +36,10 @@ void LoginService::Init()
         MSG_C2S_LOGIN,
         [this](Connection *conn, Player *player, std::shared_ptr<IMessage> msg)
         {
-            // 注意：登录时 player 为 nullptr
-            HandleLogin(conn, msg);
+            // 💡 登录时 player 必定为 nullptr，显式忽略以消除警告
+            (void)player;
+            // 使用 move 将所有权转移至异步处理流程
+            HandleLogin(conn, std::move(msg));
         });
 }
 
@@ -45,28 +48,23 @@ void LoginService::HandleLogin(Connection *conn, std::shared_ptr<IMessage> msg)
     if (!conn || !msg)
         return;
 
-    // 1. 捕获共享指针，确保异步期间对象存活
-    auto connPtr = conn->shared_from_this();
-
-    // // 2. 解析 Protobuf 请求（快速完成）
-    // anime::LoginRequest request;
-    // if (!request.ParseFromArray(data, (int)len))
-    // {
-    //     LOG_ERROR("LoginRequest parse failed");
-    //     return;
-    // }
-    auto loginMsg = std::dynamic_pointer_cast<LoginMessage>(msg);
+    // 🔥 核心变更：统一使用 ProtoMessage 泛型包装器
+    auto loginMsg = std::dynamic_pointer_cast<ProtoMessage<anime::LoginRequest>>(msg);
     if (!loginMsg)
     {
-        LOG_ERROR("Message type mismatch: expected LoginMessage");
+        LOG_ERROR("Message type mismatch: expected anime::LoginRequest");
+        SendSimpleMessage(conn, MSG_S2C_ERROR_COMMON);
         return;
     }
 
-    // 直接从解析好的 loginMsg 中提取数据，不再需要 ParseFromArray
-    auto username = loginMsg->username;
-    auto password = loginMsg->password;
+    // 捕获 shared_ptr 保证异步期间 Connection 实例不被销毁
+    auto connPtr = conn->shared_from_this();
 
-    // 3. 将耗时操作（DB/计算）投递到全局线程池
+    // 从 PB 对象提取数据
+    auto username = loginMsg->Get().username();
+    auto password = loginMsg->Get().password();
+
+    // 投递到全局线程池处理 DB 负载（避免阻塞 IO 线程）
     GlobalThreadPool::Instance().GetPool().Enqueue(
         [connPtr, username = std::move(username), password = std::move(password)]()
         {
@@ -75,7 +73,6 @@ void LoginService::HandleLogin(Connection *conn, std::shared_ptr<IMessage> msg)
 #ifdef STRESS_TEST_MODE
             try
             {
-                // 压测模式：直接将用户名视为 UID
                 playerId = std::stoull(username);
             }
             catch (const std::exception &)
@@ -86,7 +83,6 @@ void LoginService::HandleLogin(Connection *conn, std::shared_ptr<IMessage> msg)
                 return;
             }
 #else
-            // 正常逻辑：查询数据库账号
             auto playerIdOpt = AccountRepository::Instance().GetAccountId(username, password);
             if (!playerIdOpt)
             {
@@ -98,7 +94,6 @@ void LoginService::HandleLogin(Connection *conn, std::shared_ptr<IMessage> msg)
             playerId = *playerIdOpt;
 #endif
 
-            // 4. 加载玩家数据（耗时点）
             auto player = std::make_shared<Player>(playerId);
 
 #ifndef STRESS_TEST_MODE
@@ -111,10 +106,10 @@ void LoginService::HandleLogin(Connection *conn, std::shared_ptr<IMessage> msg)
                 return;
             }
 #endif
-            // 【压测/测试逻辑】强行赋予足够余额
+            // 测试环境下赋予足够货币
             player->GetCurrency().Set(1000000);
 
-            // 5. 回流至该连接所属的 IO 线程进行最终状态变更和回包
+            // 关键：将状态变更逻辑回流 (Post) 到连接所属的 IO 线程，保证单线程安全执行
             boost::asio::post(
                 connPtr->GetSocket().get_executor(),
                 [connPtr, playerId, player]()
@@ -122,7 +117,6 @@ void LoginService::HandleLogin(Connection *conn, std::shared_ptr<IMessage> msg)
                     uint64_t sid = connPtr->GetSessionId();
                     std::shared_ptr<Session> session;
 
-                    // --- Session 获取或创建 ---
                     if (sid == 0)
                     {
                         session = SessionManager::Instance().CreateSession();
@@ -137,49 +131,40 @@ void LoginService::HandleLogin(Connection *conn, std::shared_ptr<IMessage> msg)
                             return;
                     }
 
-                    // --- 🔥 顶号与唯一性控制 (工业级闭环) ---
-
-                    // 1️⃣ 断开旧连接：传入当前 sid 以排除自己，避免“自杀式踢人”
+                    // 顶号逻辑：确保同一账号在全服只有一处在线
                     SessionManager::Instance().KickPlayer(playerId, sid, "Re-login");
-
-                    // 2️⃣ 剥夺旧 Player 写权限：同步调用 Logout，利用内部 CAS 标记 is_logging_out_
-                    // 即使旧连接的物理断开回调还没触发，这里的 Logout 也会立即让旧实例失效并触发保存
                     PlayerManager::Instance().Logout(playerId);
 
-                    // 2. 正式登录（进入 PlayerManager 内存容器）
-                    // 此时可以安全地放入新 player 实例了
                     if (!PlayerManager::Instance().Login(playerId, player))
                     {
-                        LOG_ERROR("Player {} Login to PlayerManager failed - potential race condition", playerId);
+                        LOG_ERROR("Player {} login to PlayerManager failed", playerId);
                         SendSimpleMessage(connPtr.get(), MSG_S2C_ERROR_COMMON);
                         return;
                     }
 
-                    // 3. 绑定组件与映射
+                    // 绑定各组件
                     auto actor = std::make_shared<PlayerActor>(player);
                     session->BindPlayer(player);
                     session->BindActor(actor);
                     player->SetSessionId(session->GetSessionId());
 
-                    // 🔥 建立 PlayerId -> Session 的映射，供后续 KickPlayer 查询
                     SessionManager::Instance().BindPlayerToSession(playerId, session);
 
-                    // --- 构建回包 ---
-                    anime::LoginResponse resp_pb;
-                    resp_pb.set_player_id(playerId);
-                    resp_pb.set_currency(player->GetCurrency().Get());
+                    // 构造响应回包
+                    anime::LoginResponse respPb;
+                    respPb.set_player_id(playerId);
+                    respPb.set_currency(player->GetCurrency().Get());
 
                     std::string payload;
-                    if (resp_pb.SerializeToString(&payload))
+                    if (respPb.SerializeToString(&payload))
                     {
                         Packet packet;
                         packet.SetMessageId(MSG_S2C_LOGIN_RESP);
-                        packet.Append(payload.data(), payload.size());
+                        packet.Append(payload); // 使用更简洁的 Append(std::string)
                         connPtr->SendPacket(packet);
                     }
 
-                    LOG_INFO("Player {} login success, sid={}, is_relogin={}",
-                             playerId, sid, (sid != 0));
+                    LOG_INFO("Player {} login success, sid={}", playerId, sid);
                 });
         });
 }

@@ -2,22 +2,23 @@ syntax = "proto3";
 
 package anime;
 
-// 抽卡请求（单抽和十连可以共用，或者通过内部字段区分）
+// 抽卡请求（单抽和十连都复用该结构）
 message GachaDrawRequest
 {
-    // 预留：未来可以加入抽卡池 ID 等字段
+    // 目标卡池 ID，默认 1
+    uint32 pool_id = 1;
+
+    // 客户端链路追踪 ID（可选），便于排查重试/乱序问题
+    string client_trace_id = 2;
 }
 
-// 单个道具的抽取结果
 message GachaDrawResponse
 {
     uint32 item_id = 1;
     uint32 rarity = 2;
 }
 
-// 十连抽/多连抽的统一响应包
 message GachaDrawTenResponse
 {
-    // 使用 repeated 关键字，表示这是一个 GachaDrawResponse 的列表
     repeated GachaDrawResponse results = 1;
 }

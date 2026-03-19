@@ -38,7 +38,7 @@ void MessageDispatcher::Dispatch(uint16_t msgId, Connection *conn, const char *d
     }
 
     // 🔥 Step 1: 解码（新增）
-    auto msg = MessageDecoder::Decode(msgId, data, len);
+    auto msg = MessageDecoder::Instance().Decode(msgId, data, len);
     if (!msg)
     {
         LOG_ERROR("Decode failed msgId={}", msgId);

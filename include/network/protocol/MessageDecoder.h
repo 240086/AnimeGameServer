@@ -1,6 +1,7 @@
 #pragma once
 #include <functional>
 #include <unordered_map>
+#include <mutex>
 #include <shared_mutex> // C++17 读写锁
 #include <memory>
 #include "IMessage.h"
