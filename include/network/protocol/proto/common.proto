@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package anime;
+
+// 通用错误返回
+message ErrorResponse {
+  uint32 code = 1;     // 错误码
+  string message = 2;  // 可选：调试用（生产可关闭）
+}

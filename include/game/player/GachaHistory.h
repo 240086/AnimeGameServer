@@ -8,7 +8,7 @@ class Player;
 
 struct GachaRecord
 {
-    uint64_t seq;  // 全局递增ID（关键）
+    uint64_t seq; // 全局递增ID（关键）
     int rarity;
 };
 
@@ -19,11 +19,11 @@ public:
 
     void Record(int rarity);
 
-    void SetOwner(Player* owner) { owner_ = owner; }
+    void SetOwner(Player *owner) { owner_ = owner; }
 
     int SinceLastFiveStar() const { return pityCount_; }
 
-    const std::deque<GachaRecord>& GetHistory() const { return history_; }
+    const std::deque<GachaRecord> &GetHistory() const { return history_; }
 
     size_t GetTotalCount() const { return history_.size(); }
 
@@ -38,8 +38,11 @@ private:
 
     int pityCount_ = 0;
 
-    uint64_t nextSeq_ = 1;          // 下一个序号
-    uint64_t persistedSeq_ = 0;     // 已持久化到的最大seq
+    uint64_t nextSeq_ = 1;      // 下一个序号
+    uint64_t persistedSeq_ = 0; // 已持久化到的最大seq
 
-    Player* owner_ = nullptr;
+    Player *owner_ = nullptr;
+#ifndef NDEBUG
+    bool recording_ = false;
+#endif
 };

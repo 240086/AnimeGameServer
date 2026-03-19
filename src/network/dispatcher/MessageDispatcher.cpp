@@ -6,6 +6,7 @@
 #include "network/session/SessionManager.h"
 #include "network/protocol/MessageDecoder.h"
 #include "game/player/Player.h"
+#include "network/protocol/ErrorSender.h"
 
 MessageDispatcher &MessageDispatcher::Instance()
 {
@@ -42,6 +43,7 @@ void MessageDispatcher::Dispatch(uint16_t msgId, Connection *conn, const char *d
     if (!msg)
     {
         LOG_ERROR("Decode failed msgId={}", msgId);
+        ErrorSender::Send(conn, ErrorCode::DECODE_FAILED);
         return;
     }
 

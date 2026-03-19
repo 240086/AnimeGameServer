@@ -1,8 +1,18 @@
 #include "game/player/GachaHistory.h"
 #include "game/player/Player.h"
+#include "common/logger/Logger.h"
 
 void GachaHistory::Record(int rarity)
 {
+#ifndef NDEBUG
+    if (recording_)
+    {
+        LOG_ERROR("Duplicate gacha history recording detected");
+        return;
+    }
+    recording_ = true;
+#endif
+
     GachaRecord rec;
     rec.seq = nextSeq_++;
     rec.rarity = rarity;
@@ -23,6 +33,9 @@ void GachaHistory::Record(int rarity)
     {
         owner_->MarkDirty(PlayerDirtyFlag::GACHA_HISTORY);
     }
+#ifndef NDEBUG
+    recording_ = false;
+#endif
 }
 
 std::vector<GachaRecord> GachaHistory::GetUnpersisted() const

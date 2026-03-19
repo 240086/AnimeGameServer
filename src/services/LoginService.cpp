@@ -9,20 +9,8 @@
 #include "common/thread/GlobalThreadPool.h"
 #include "database/player/PlayerLoader.h"
 #include "database/repository/AccountRepository.h"
-
+#include "network/protocol/ErrorSender.h"
 #include "login.pb.h"
-
-namespace
-{
-    void SendSimpleMessage(Connection *conn, uint16_t messageId)
-    {
-        if (!conn)
-            return;
-        Packet packet;
-        packet.SetMessageId(messageId);
-        conn->SendPacket(packet);
-    }
-}
 
 LoginService &LoginService::Instance()
 {
@@ -52,8 +40,8 @@ void LoginService::HandleLogin(Connection *conn, std::shared_ptr<IMessage> msg)
     auto loginMsg = std::dynamic_pointer_cast<ProtoMessage<anime::LoginRequest>>(msg);
     if (!loginMsg)
     {
-        LOG_ERROR("Message type mismatch: expected anime::LoginRequest");
-        SendSimpleMessage(conn, MSG_S2C_ERROR_COMMON);
+        LOG_ERROR("Login parse failed");
+        ErrorSender::Send(conn, ErrorCode::INVALID_REQUEST);
         return;
     }
 
@@ -79,7 +67,7 @@ void LoginService::HandleLogin(Connection *conn, std::shared_ptr<IMessage> msg)
             {
                 boost::asio::post(connPtr->GetSocket().get_executor(),
                                   [connPtr]()
-                                  { SendSimpleMessage(connPtr.get(), MSG_S2C_ERROR_AUTH_FAIL); });
+                                  { ErrorSender::Send(connPtr.get(), ErrorCode::AUTH_FAILED); });
                 return;
             }
 #else
@@ -88,7 +76,7 @@ void LoginService::HandleLogin(Connection *conn, std::shared_ptr<IMessage> msg)
             {
                 boost::asio::post(connPtr->GetSocket().get_executor(),
                                   [connPtr]()
-                                  { SendSimpleMessage(connPtr.get(), MSG_S2C_ERROR_AUTH_FAIL); });
+                                  { ErrorSender::Send(connPtr.get(), ErrorCode::AUTH_FAILED); });
                 return;
             }
             playerId = *playerIdOpt;
@@ -102,7 +90,7 @@ void LoginService::HandleLogin(Connection *conn, std::shared_ptr<IMessage> msg)
                 LOG_ERROR("Load player failed: {}", playerId);
                 boost::asio::post(connPtr->GetSocket().get_executor(),
                                   [connPtr]()
-                                  { SendSimpleMessage(connPtr.get(), MSG_S2C_ERROR_COMMON); });
+                                  { ErrorSender::Send(connPtr.get(), ErrorCode::PLAYER_LOAD_FAILED); });
                 return;
             }
 #endif
@@ -138,7 +126,7 @@ void LoginService::HandleLogin(Connection *conn, std::shared_ptr<IMessage> msg)
                     if (!PlayerManager::Instance().Login(playerId, player))
                     {
                         LOG_ERROR("Player {} login to PlayerManager failed", playerId);
-                        SendSimpleMessage(connPtr.get(), MSG_S2C_ERROR_COMMON);
+                        ErrorSender::Send(connPtr.get(), ErrorCode::AUTH_FAILED);
                         return;
                     }
 

@@ -22,7 +22,7 @@ enum MessageId : uint16_t
     MSG_S2C_NOTIFY_INVENTORY = 2003,
 
     // --- [9000 ~ 9999] Error Codes ---
-    MSG_S2C_ERROR_COMMON = 9000,            // 通用错误
+    MSG_S2C_ERROR = 9000,            // 通用错误
     MSG_S2C_ERROR_AUTH_FAIL = 9001,         // 登录验证失败
     MSG_S2C_ERROR_INSUFFICIENT_FUNDS = 9002 // 余额不足
 };

@@ -5,8 +5,7 @@
 #include "game/gacha/GachaSystem.h"
 #include "common/logger/Logger.h"
 #include "network/protocol/ProtoMessage.h"
-
-// 💡 注意：根据你的 diff，头文件路径建议保持一致
+#include "network/protocol/ErrorSender.h"
 #include "gacha.pb.h"
 
 namespace
@@ -52,7 +51,7 @@ void GachaService::HandleGacha(Connection *conn, Player *player, std::shared_ptr
     auto realMsg = ParseGachaReq(msg);
     if (!realMsg)
     {
-        LOG_ERROR("GachaService: message type mismatch for single draw");
+        ErrorSender::Send(conn, ErrorCode::INVALID_REQUEST, "GachaRequest parse failed");
         return;
     }
 
@@ -63,9 +62,7 @@ void GachaService::HandleGacha(Connection *conn, Player *player, std::shared_ptr
     // 扣费逻辑
     if (!player->GetCurrency().Spend(kSingleDrawCost))
     {
-        Packet errPkt;
-        errPkt.SetMessageId(MSG_S2C_ERROR_INSUFFICIENT_FUNDS);
-        conn->SendPacket(errPkt);
+        ErrorSender::Send(conn, ErrorCode::INSUFFICIENT_FUNDS);
         return;
     }
 
@@ -79,13 +76,16 @@ void GachaService::HandleGacha(Connection *conn, Player *player, std::shared_ptr
     respPb.set_rarity(item.rarity);
 
     std::string payload;
-    if (respPb.SerializeToString(&payload))
+    if (!respPb.SerializeToString(&payload))
     {
-        Packet pkt;
-        pkt.SetMessageId(MSG_S2C_GACHA_DRAW_RESP);
-        pkt.Append(payload);
-        conn->SendPacket(pkt);
+        ErrorSender::Send(conn, ErrorCode::INSUFFICIENT_FUNDS);
+        return;
     }
+
+    Packet pkt;
+    pkt.SetMessageId(MSG_S2C_GACHA_DRAW_RESP);
+    pkt.Append(payload);
+    conn->SendPacket(pkt);
 }
 
 void GachaService::HandleGachaTen(Connection *conn, Player *player, std::shared_ptr<IMessage> msg)

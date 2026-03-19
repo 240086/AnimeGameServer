@@ -16,5 +16,7 @@ void ProtocolRegistry::RegisterAll()
     // --- 心跳模块 ---
     REGISTER_PROTO_MESSAGE(MSG_C2S_HEARTBEAT, anime::HeartbeatRequest);
 
+    REGISTER_PROTO_MESSAGE(MSG_S2C_ERROR, anime::ErrorResponse);
+    
     LOG_INFO("ProtocolRegistry: all protocols registered");
 }

@@ -13,6 +13,8 @@ public:
     uint16_t GetMsgId() const override { return msgId_; }
 
     const T &Get() const { return *pb_; }
+    T &Mutable() { return *pb_; }
+    std::shared_ptr<T> GetPtr() const { return pb_; }
 
 private:
     uint16_t msgId_;
