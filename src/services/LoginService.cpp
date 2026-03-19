@@ -1,7 +1,6 @@
 #include "services/LoginService.h"
 #include "network/dispatcher/MessageDispatcher.h"
 #include "network/protocol/MessageId.h"
-#include "network/protocol/Packet.h"
 #include "network/protocol/ProtoMessage.h"
 #include "network/session/SessionManager.h"
 #include "game/player/PlayerManager.h"
@@ -10,6 +9,7 @@
 #include "database/player/PlayerLoader.h"
 #include "database/repository/AccountRepository.h"
 #include "network/protocol/ErrorSender.h"
+#include "network/protocol/ResponseSender.h"
 #include "login.pb.h"
 
 LoginService &LoginService::Instance()
@@ -56,20 +56,20 @@ void LoginService::HandleLogin(Connection *conn, std::shared_ptr<IMessage> msg)
     GlobalThreadPool::Instance().GetPool().Enqueue(
         [connPtr, username = std::move(username), password = std::move(password)]()
         {
-            uint64_t playerId = 0;
+        uint64_t playerId = 0;
 
 #ifdef STRESS_TEST_MODE
-            try
-            {
-                playerId = std::stoull(username);
-            }
-            catch (const std::exception &)
-            {
-                boost::asio::post(connPtr->GetSocket().get_executor(),
-                                  [connPtr]()
-                                  { ErrorSender::Send(connPtr.get(), ErrorCode::AUTH_FAILED); });
-                return;
-            }
+        try
+        {
+            playerId = std::stoull(username);
+        }
+        catch (const std::exception &)
+        {
+            boost::asio::post(connPtr->GetSocket().get_executor(),
+                              [connPtr]()
+                              { ErrorSender::Send(connPtr.get(), ErrorCode::AUTH_FAILED); });
+            return;
+        }
 #else
             auto playerIdOpt = AccountRepository::Instance().GetAccountId(username, password);
             if (!playerIdOpt)
@@ -82,11 +82,19 @@ void LoginService::HandleLogin(Connection *conn, std::shared_ptr<IMessage> msg)
             playerId = *playerIdOpt;
 #endif
 
-            auto player = std::make_shared<Player>(playerId);
+        auto player = std::make_shared<Player>(playerId);
+        bool loaded = PlayerLoader::Load(playerId, *player);
 
-#ifndef STRESS_TEST_MODE
-            if (!PlayerLoader::Load(playerId, *player))
-            {
+        if (!loaded)
+        {
+#ifdef STRESS_TEST_MODE
+            // 压测模式下允许“冷启动账号”，默认仅给 10 连一次的预算，避免无限金币掩盖真实业务行为。
+            constexpr uint64_t kStressBootstrapCurrency = 16000;
+            player->GetCurrency().Set(kStressBootstrapCurrency);
+            player->MarkDirty(PlayerDirtyFlag::CURRENCY);
+            LOG_WARN("Player {} load failed in STRESS_TEST_MODE, bootstrap currency={}",
+                     playerId, kStressBootstrapCurrency);
+#else
                 LOG_ERROR("Load player failed: {}", playerId);
                 boost::asio::post(connPtr->GetSocket().get_executor(),
                                   [connPtr]()
@@ -94,8 +102,8 @@ void LoginService::HandleLogin(Connection *conn, std::shared_ptr<IMessage> msg)
                 return;
             }
 #endif
-            // 测试环境下赋予足够货币
-            player->GetCurrency().Set(1000000);
+            // // 测试环境下赋予足够货币
+            // player->GetCurrency().Set(16000);
 
             // 关键：将状态变更逻辑回流 (Post) 到连接所属的 IO 线程，保证单线程安全执行
             boost::asio::post(
@@ -143,14 +151,7 @@ void LoginService::HandleLogin(Connection *conn, std::shared_ptr<IMessage> msg)
                     respPb.set_player_id(playerId);
                     respPb.set_currency(player->GetCurrency().Get());
 
-                    std::string payload;
-                    if (respPb.SerializeToString(&payload))
-                    {
-                        Packet packet;
-                        packet.SetMessageId(MSG_S2C_LOGIN_RESP);
-                        packet.Append(payload); // 使用更简洁的 Append(std::string)
-                        connPtr->SendPacket(packet);
-                    }
+                    ResponseSender::SendProto(connPtr.get(), MSG_S2C_LOGIN_RESP, respPb);
 
                     LOG_INFO("Player {} login success, sid={}", playerId, sid);
                 });

@@ -2,6 +2,7 @@
 #include "database/redis/RedisPool.h"
 #include "database/redis/RedisKeyManager.h"
 #include "common/logger/Logger.h"
+#include "common/metrics/ServerMetrics.h"
 
 IdempotencyService &IdempotencyService::Instance()
 {
@@ -23,6 +24,7 @@ IdempotencyResult IdempotencyService::CheckAndLock(uint64_t playerId, const std:
     if (traceId.empty())
     {
         result.state = IdempotencyState::FIRST_TIME;
+        ServerMetrics::Instance().IncIdemFirstTime();
         return result;
     }
 
@@ -31,6 +33,8 @@ IdempotencyResult IdempotencyService::CheckAndLock(uint64_t playerId, const std:
     {
         LOG_ERROR("Idempotency: Redis connection failed for player {}", playerId);
         result.state = IdempotencyState::FIRST_TIME; // Redis挂了，降级放行逻辑，避免玩家无法玩游戏
+        ServerMetrics::Instance().IncIdemFirstTime();
+        ServerMetrics::Instance().IncIdemRedisDegrade();
         return result;
     }
 
@@ -44,6 +48,7 @@ IdempotencyResult IdempotencyService::CheckAndLock(uint64_t playerId, const std:
     {
         // 成功抢到锁，说明是第一次请求
         result.state = IdempotencyState::FIRST_TIME;
+        ServerMetrics::Instance().IncIdemFirstTime();
     }
     else
     {
@@ -53,12 +58,14 @@ IdempotencyResult IdempotencyService::CheckAndLock(uint64_t playerId, const std:
         {
             // 依然是 "P"，说明另一条线程还没跑完
             result.state = IdempotencyState::IN_PROGRESS;
+            ServerMetrics::Instance().IncIdemInProgress();
         }
         else
         {
             // 拿到了具体的内容，说明是超时重试，直接回放结果
             result.state = IdempotencyState::COMPLETED;
             result.payload = *val;
+            ServerMetrics::Instance().IncIdemReplay();
         }
     }
 

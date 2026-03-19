@@ -7,6 +7,8 @@
 #include "network/protocol/ProtoMessage.h"
 #include "network/protocol/ErrorSender.h"
 #include "services/IdempotencyService.h"
+#include "common/metrics/ServerMetrics.h"
+#include "network/protocol/ResponseSender.h"
 #include "gacha.pb.h"
 
 namespace
@@ -49,9 +51,13 @@ void GachaService::HandleGacha(Connection *conn, Player *player, std::shared_ptr
     if (!conn || !player)
         return;
 
+    ServerMetrics::Instance().IncGachaRequest();
+    ServerMetrics::Instance().IncGachaSingleRequest();
+
     auto realMsg = ParseGachaReq(msg);
     if (!realMsg)
     {
+        ServerMetrics::Instance().IncGachaInvalidRequest();
         ErrorSender::Send(conn, ErrorCode::INVALID_REQUEST, "GachaRequest parse failed");
         return;
     }
@@ -67,16 +73,15 @@ void GachaService::HandleGacha(Connection *conn, Player *player, std::shared_ptr
 
     if (idem.state == IdempotencyState::IN_PROGRESS)
     {
+        ServerMetrics::Instance().IncGachaInvalidRequest();
         ErrorSender::Send(conn, ErrorCode::INVALID_REQUEST, "Request in progress");
         return;
     }
 
     if (idem.state == IdempotencyState::COMPLETED)
     {
-        Packet pkt;
-        pkt.SetMessageId(MSG_S2C_GACHA_DRAW_RESP);
-        pkt.Append(*idem.payload);
-        conn->SendPacket(pkt);
+        ServerMetrics::Instance().IncGachaSuccess();
+        ResponseSender::SendPayload(conn, MSG_S2C_GACHA_DRAW_RESP, *idem.payload);
         return;
     }
 
@@ -85,6 +90,7 @@ void GachaService::HandleGacha(Connection *conn, Player *player, std::shared_ptr
     // ================================
     if (!player->GetCurrency().Spend(kSingleDrawCost))
     {
+        ServerMetrics::Instance().IncGachaInsufficientFunds();
         IdempotencyService::Instance().Unlock(player->GetId(), traceId);
         ErrorSender::Send(conn, ErrorCode::INSUFFICIENT_FUNDS);
         return;
@@ -106,6 +112,7 @@ void GachaService::HandleGacha(Connection *conn, Player *player, std::shared_ptr
     std::string payload;
     if (!respPb.SerializeToString(&payload))
     {
+        ServerMetrics::Instance().IncGachaInternalError();
         IdempotencyService::Instance().Unlock(player->GetId(), traceId);
         ErrorSender::Send(conn, ErrorCode::INTERNAL_ERROR);
         return;
@@ -126,10 +133,8 @@ void GachaService::HandleGacha(Connection *conn, Player *player, std::shared_ptr
     // ================================
     // 7. 返回
     // ================================
-    Packet pkt;
-    pkt.SetMessageId(MSG_S2C_GACHA_DRAW_RESP);
-    pkt.Append(payload);
-    conn->SendPacket(pkt);
+    ResponseSender::SendPayload(conn, MSG_S2C_GACHA_DRAW_RESP, payload);
+    ServerMetrics::Instance().IncGachaSuccess();
 }
 
 //////////////////////////////////////////////////////////////
@@ -140,9 +145,13 @@ void GachaService::HandleGachaTen(Connection *conn, Player *player, std::shared_
     if (!conn || !player)
         return;
 
+    ServerMetrics::Instance().IncGachaRequest();
+    ServerMetrics::Instance().IncGachaTenRequest();
+
     auto realMsg = ParseGachaReq(msg);
     if (!realMsg)
     {
+        ServerMetrics::Instance().IncGachaInvalidRequest();
         ErrorSender::Send(conn, ErrorCode::INVALID_REQUEST);
         return;
     }
@@ -158,16 +167,15 @@ void GachaService::HandleGachaTen(Connection *conn, Player *player, std::shared_
 
     if (idem.state == IdempotencyState::IN_PROGRESS)
     {
+        ServerMetrics::Instance().IncGachaInvalidRequest();
         ErrorSender::Send(conn, ErrorCode::INVALID_REQUEST, "Request in progress");
         return;
     }
 
     if (idem.state == IdempotencyState::COMPLETED)
     {
-        Packet pkt;
-        pkt.SetMessageId(MSG_S2C_GACHA_DRAW_TEN_RESP);
-        pkt.Append(*idem.payload);
-        conn->SendPacket(pkt);
+        ServerMetrics::Instance().IncGachaSuccess();
+        ResponseSender::SendPayload(conn, MSG_S2C_GACHA_DRAW_TEN_RESP, *idem.payload);
         return;
     }
 
@@ -178,6 +186,7 @@ void GachaService::HandleGachaTen(Connection *conn, Player *player, std::shared_
 
     if (!player->GetCurrency().Spend(totalCost))
     {
+        ServerMetrics::Instance().IncGachaInsufficientFunds();
         IdempotencyService::Instance().Unlock(player->GetId(), traceId);
         ErrorSender::Send(conn, ErrorCode::INSUFFICIENT_FUNDS);
         return;
@@ -205,6 +214,7 @@ void GachaService::HandleGachaTen(Connection *conn, Player *player, std::shared_
     std::string payload;
     if (!respPb.SerializeToString(&payload))
     {
+        ServerMetrics::Instance().IncGachaInternalError();
         IdempotencyService::Instance().Unlock(player->GetId(), traceId);
         ErrorSender::Send(conn, ErrorCode::INTERNAL_ERROR);
         return;
@@ -225,10 +235,8 @@ void GachaService::HandleGachaTen(Connection *conn, Player *player, std::shared_
     // ================================
     // 7. 返回
     // ================================
-    Packet pkt;
-    pkt.SetMessageId(MSG_S2C_GACHA_DRAW_TEN_RESP);
-    pkt.Append(payload);
-    conn->SendPacket(pkt);
+    ResponseSender::SendPayload(conn, MSG_S2C_GACHA_DRAW_TEN_RESP, payload);
+    ServerMetrics::Instance().IncGachaSuccess();
 
     LOG_INFO("Player {} completed 10-draw, pool={}, trace={}",
              player->GetId(), poolId, traceId);
