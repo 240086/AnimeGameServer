@@ -41,6 +41,20 @@ std::shared_ptr<RedisClient> RedisPool::Acquire()
     return client;
 }
 
+std::shared_ptr<RedisClient> RedisPool::TryAcquireFor(std::chrono::milliseconds timeout)
+{
+    std::unique_lock<std::mutex> lock(mutex_);
+    if (!cv_.wait_for(lock, timeout, [this]()
+                      { return !pool_.empty(); }))
+    {
+        return nullptr;
+    }
+
+    auto client = pool_.front();
+    pool_.pop();
+    return client;
+}
+
 void RedisPool::Release(std::shared_ptr<RedisClient> client)
 {
     std::lock_guard<std::mutex> lock(mutex_);

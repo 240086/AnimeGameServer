@@ -89,7 +89,8 @@ AnimeGameServer
 │  │  │  │  ├─ heartbeat.proto
 │  │  │  │  └─ login.proto
 │  │  │  ├─ ProtocolRegistry.h
-│  │  │  └─ ProtoMessage.h
+│  │  │  ├─ ProtoMessage.h
+│  │  │  └─ ResponseSender.h
 │  │  ├─ session
 │  │  │  ├─ Session.h
 │  │  │  └─ SessionManager.h

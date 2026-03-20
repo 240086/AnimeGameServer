@@ -16,6 +16,7 @@ public:
 
     // 获取/归还连接
     std::shared_ptr<RedisClient> Acquire();
+    std::shared_ptr<RedisClient> TryAcquireFor(std::chrono::milliseconds timeout);
     void Release(std::shared_ptr<RedisClient> client);
 
 private:

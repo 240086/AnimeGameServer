@@ -160,7 +160,7 @@ bool RedisClient::Del(const std::string &key)
     }
 
     // 3. 检查返回值：REDIS_REPLY_INTEGER 表示删除的 Key 数量
-    bool success = (reply->type != REDIS_REPLY_INTEGER);
+    bool success = (reply->type == REDIS_REPLY_INTEGER);
 
     freeReplyObject(reply);
     return success;

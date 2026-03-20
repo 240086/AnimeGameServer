@@ -3,6 +3,23 @@
 #include "database/redis/RedisKeyManager.h"
 #include "common/logger/Logger.h"
 #include "common/metrics/ServerMetrics.h"
+#include <chrono>
+
+namespace
+{
+    constexpr auto kRedisAcquireTimeout = std::chrono::milliseconds(2);
+
+    std::shared_ptr<RedisClient> AcquireRedisWithDegrade(uint64_t playerId)
+    {
+        auto redis = RedisPool::Instance().TryAcquireFor(kRedisAcquireTimeout);
+        if (!redis)
+        {
+            LOG_WARN("Idempotency: Redis pool exhausted, degrade for player {}", playerId);
+            ServerMetrics::Instance().IncIdemRedisDegrade();
+        }
+        return redis;
+    }
+}
 
 IdempotencyService &IdempotencyService::Instance()
 {
@@ -28,13 +45,12 @@ IdempotencyResult IdempotencyService::CheckAndLock(uint64_t playerId, const std:
         return result;
     }
 
-    auto redis = RedisPool::Instance().Acquire();
+    auto redis = AcquireRedisWithDegrade(playerId);
     if (!redis)
     {
-        LOG_ERROR("Idempotency: Redis connection failed for player {}", playerId);
+        LOG_WARN("Idempotency: Redis unavailable, degrade for player {}", playerId);
         result.state = IdempotencyState::FIRST_TIME; // Redis挂了，降级放行逻辑，避免玩家无法玩游戏
         ServerMetrics::Instance().IncIdemFirstTime();
-        ServerMetrics::Instance().IncIdemRedisDegrade();
         return result;
     }
 
@@ -78,7 +94,7 @@ bool IdempotencyService::SaveResult(uint64_t playerId, const std::string &traceI
     if (traceId.empty())
         return true;
 
-    auto redis = RedisPool::Instance().Acquire();
+    auto redis = AcquireRedisWithDegrade(playerId);
     if (!redis)
         return false;
 
@@ -96,7 +112,7 @@ bool IdempotencyService::Unlock(uint64_t playerId, const std::string &traceId)
     if (traceId.empty())
         return true;
 
-    auto redis = RedisPool::Instance().Acquire();
+    auto redis = AcquireRedisWithDegrade(playerId);
     if (!redis)
         return false;
 
