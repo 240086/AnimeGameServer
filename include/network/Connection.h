@@ -37,7 +37,7 @@ public:
 private:
     void DoRead();
     void DoWrite();
-    void HandlePacket(uint16_t msgId, const char *data, size_t len);
+    void HandlePacket(const MessageContext &ctx, const char *data, size_t len);
 
     // 🔥 新增
     void AsyncCleanup(uint64_t sid);

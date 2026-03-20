@@ -16,9 +16,9 @@ void Connection::Start()
     DoRead();
 }
 
-void Connection::HandlePacket(uint16_t msgId, const char *data, size_t len)
+void Connection::HandlePacket(const MessageContext &ctx, const char *data, size_t len)
 {
-    MessageDispatcher::Instance().Dispatch(msgId, this, data, len);
+    MessageDispatcher::Instance().Dispatch(ctx, this, data, len);
 }
 
 void Connection::DoRead()
@@ -37,9 +37,10 @@ void Connection::DoRead()
 
                                            parser_.Parse(
                                                recv_buffer_,
-                                               [this](uint16_t msgId, const char *data, size_t len)
+                                               [this](const MessageContext &ctx, const char *data, size_t len)
                                                {
-                                                   HandlePacket(msgId, data, len);
+                                                   LOG_INFO("Recv Msg:{} from Session:{}", ctx.msgId, ctx.sessionId);
+                                                   HandlePacket(ctx, data, len);
                                                });
 
                                            DoRead();
@@ -62,7 +63,7 @@ void Connection::SendPacket(const Packet &packet)
     if (closed_.load())
         return;
 
-    auto data = std::make_shared<std::vector<char>>(packet.Serialize());
+    auto data = std::make_shared<std::vector<char>>(packet.Serialize(session_id_));
 
     boost::asio::post(strand_, [this, self = shared_from_this(), data]()
                       {

@@ -13,23 +13,21 @@ struct PacketHeader
 class Packet
 {
 public:
-
     Packet();
 
     void SetMessageId(uint16_t id);
 
     uint16_t GetMessageId() const;
 
-    void Append(const char* data,size_t len);
+    void Append(const char *data, size_t len);
 
-    void Append(const std::string& s);
+    void Append(const std::string &s);
 
-    const std::vector<char>& GetBuffer() const;
+    const std::vector<char> &GetBuffer() const;
 
-    std::vector<char> Serialize() const;
+    std::vector<char> Serialize(uint32_t sessionId) const;
 
 private:
-
     PacketHeader header_;
 
     std::vector<char> buffer_;

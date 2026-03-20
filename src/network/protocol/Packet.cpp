@@ -5,7 +5,7 @@
 
 namespace socket_ops = boost::asio::detail::socket_ops;
 
-static constexpr size_t HEADER_SIZE = 6;
+static constexpr size_t HEADER_SIZE = 10;
 
 Packet::Packet()
 {
@@ -23,9 +23,9 @@ uint16_t Packet::GetMessageId() const
     return header_.messageId;
 }
 
-void Packet::Append(const char* data,size_t len)
+void Packet::Append(const char *data, size_t len)
 {
-    buffer_.insert(buffer_.end(),data,data+len);
+    buffer_.insert(buffer_.end(), data, data + len);
     header_.length = buffer_.size();
 }
 
@@ -38,7 +38,7 @@ const std::vector<char> &Packet::GetBuffer() const
     return buffer_;
 }
 
-std::vector<char> Packet::Serialize() const
+std::vector<char> Packet::Serialize(uint32_t sessionId) const
 {
     std::vector<char> out;
 
@@ -47,13 +47,15 @@ std::vector<char> Packet::Serialize() const
     // 使用 Boost 提供的跨平台转换函数
     // host_to_network_long  等同于 htonl
     // host_to_network_short 等同于 htons
-    uint32_t len = socket_ops::host_to_network_long(header_.length);
-    uint16_t id  = socket_ops::host_to_network_short(header_.messageId);
+    uint32_t totalLen = socket_ops::host_to_network_long(6 + buffer_.size());
+    uint32_t netSid = socket_ops::host_to_network_long(sessionId);
+    uint16_t netId = socket_ops::host_to_network_short(header_.messageId);
 
-    std::memcpy(out.data(), &len, 4);
-    std::memcpy(out.data() + 4, &id, 2);
+    std::memcpy(out.data(), &totalLen, 4);
+    std::memcpy(out.data() + 4, &netSid, 4);
+    std::memcpy(out.data() + 8, &netId, 2);
 
-    if(!buffer_.empty())
+    if (!buffer_.empty())
     {
         std::memcpy(out.data() + HEADER_SIZE, buffer_.data(), buffer_.size());
     }

@@ -21,37 +21,50 @@ void PacketParser::Parse(RecvBuffer &buffer, PacketCallback callback)
         const char *data = buffer.Data();
         uint32_t length;
         uint16_t msgId;
+        uint32_t sessionId; // 新增：提取 SessionId
 
+        // 提取长度 (前4字节)
         std::memcpy(&length, data, 4);
-        std::memcpy(&msgId, data + 4, 2);
-
         length = socket_ops::network_to_host_long(length);
-        msgId = socket_ops::network_to_host_short(msgId);
 
-        // --- 安全检查：限制最大包长度 ---
+        // --- 安全检查 ---
         if (length > MAX_PACKET_SIZE)
         {
-            // 发现非法数据包！
-            // 此时 buffer 里的数据已经不可信了，因为我们无法确定下一个合法的包头在哪
-            // 建议：此处可以触发一个错误回调，让上层断开这个恶意 Session
-            LOG_ERROR("Packet too large: {} bytes, max: {}", length, MAX_PACKET_SIZE);
+            LOG_ERROR("Packet too large: {} bytes", length);
+            // 建议：此处应清空 buffer 并断开连接
             return;
         }
 
-        // 2. 检查 Body 是否完整
-        if (buffer.Size() < length + HEADER_SIZE)
-        {
+        // 2. 检查整体是否完整 (Length 字段在网关定义的是 Sid+Id+Body 的长度，即 6 + BodyLen)
+        if (buffer.Size() < length + 4)
+        { // +4 是因为 length 字段本身占 4 字节
             return;
         }
 
+        // 提取 SessionID (偏移 4)
+        std::memcpy(&sessionId, data + 4, 4);
+        sessionId = socket_ops::network_to_host_long(sessionId);
+
+        // 提取 MsgID (偏移 8)
+        std::memcpy(&msgId, data + 8, 2);
+        msgId = socket_ops::network_to_host_short(msgId);
+
+        // 3. 回调处理
         const char *payload = data + HEADER_SIZE;
+        uint32_t payloadLen = length - 6; // 减去 Sid(4) 和 Id(2)
+
+        MessageContext ctx;
+        ctx.sessionId = socket_ops::network_to_host_long(sessionId);
+        ctx.msgId = socket_ops::network_to_host_short(msgId);
 
         if (callback)
         {
-            callback(msgId, payload, length);
+            const char *payload = data + HEADER_SIZE;
+            size_t payloadLen = length - 6; // 减去 Sid(4) 和 Id(2)
+            callback(ctx, payload, payloadLen);
         }
 
-        // 3. 消费已处理数据
-        buffer.Consume(length + HEADER_SIZE);
+        // 4. 消费数据
+        buffer.Consume(length + 4);
     }
 }

@@ -20,13 +20,13 @@ void MessageDispatcher::RegisterHandler(uint16_t msgId, MessageHandler handler)
     handlers_[msgId] = handler;
 }
 
-void MessageDispatcher::Dispatch(uint16_t msgId, Connection *conn, const char *data, size_t len)
+void MessageDispatcher::Dispatch(const MessageContext &ctx, Connection *conn, const char *data, size_t len)
 {
     if (!conn)
         return;
 
     MessageHandler handler;
-
+    auto msgId = ctx.msgId;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         auto it = handlers_.find(msgId);
@@ -57,31 +57,32 @@ void MessageDispatcher::Dispatch(uint16_t msgId, Connection *conn, const char *d
     }
 
     auto connPtr = conn->shared_from_this();
-    uint64_t connSid = conn->GetSessionId();
-
-    if (connSid == 0)
-        return;
-
-    auto session = SessionManager::Instance().GetSession(connSid);
+    uint32_t currentSid = ctx.sessionId; // 记录当前的玩家 ID
+    // 2. 关键修改：通过网关传来的 sessionId (ctx.sessionId) 查找 Session
+    // 这里的 sessionId 是真正的玩家 ID
+    auto session = SessionManager::Instance().GetSession(currentSid);
     if (!session)
+    {
+        LOG_WARN("Session not found for sid: {}", currentSid);
         return;
+    }
 
     auto player = session->GetPlayer();
-    if (!player)
-        return;
-
     auto actor = session->GetActor();
-    if (!actor)
+    if (!player || !actor)
+    {
+        LOG_WARN("there is !player || !actor, session id is: {}", currentSid);
         return;
+    }
 
     // 🔥 Actor 投递（无 SessionManager 二次访问）
     actor->Post([handler,
                  connPtr,
-                 connSid,
+                 currentSid,
                  player,
                  sharedMsg]() mutable
                 {
-        if (player->GetSessionId() != connSid)
+        if (player->GetSessionId() != currentSid)
             return;
 
         handler(connPtr.get(), player.get(), sharedMsg); });
