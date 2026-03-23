@@ -1,18 +1,20 @@
 #pragma once
 
-#include "network/Connection.h"
-#include "network/protocol/Packet.h"
-#include "common/ErrorCode.h"
+#include "network/protocol/MessageContext.h"
+#include "network/protocol/InternalPacket.h"
+#include "common.pb.h"
 #include "common/logger/Logger.h"
-
-#include "common.pb.h" // ErrorResponse
+#include "common/ErrorCode.h"
+#define DEBUG
 
 class ErrorSender
 {
 public:
-    static void Send(Connection *conn, ErrorCode code, const std::string &msg = "")
+    static void Send(const MessageContext &ctx,
+                     ErrorCode code,
+                     const std::string &msg = "")
     {
-        if (!conn)
+        if (!ctx.conn)
             return;
 
         anime::ErrorResponse resp;
@@ -29,10 +31,10 @@ public:
             return;
         }
 
-        Packet pkt;
-        pkt.SetMessageId(MSG_S2C_ERROR);
+        InternalPacket pkt(ctx.sid, MSG_S2C_ERROR, ctx.seqId);
         pkt.Append(payload);
 
-        conn->SendPacket(pkt);
+        auto data = std::make_shared<std::vector<char>>(pkt.Serialize());
+        ctx.conn->SendRaw(data);
     }
 };

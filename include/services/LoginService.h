@@ -3,6 +3,7 @@
 #include "services/BaseService.h"
 #include "network/Connection.h"
 #include "network/protocol/IMessage.h"
+#include "network/protocol/MessageContext.h"
 
 class LoginService : public BaseService
 {
@@ -11,5 +12,6 @@ public:
 
     void Init() override;
 
-    void HandleLogin(Connection *conn, std::shared_ptr<IMessage> msg);
+    void HandleLogin(const MessageContext &ctx,
+                     std::shared_ptr<anime::IMessage> msg);
 };

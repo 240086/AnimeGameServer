@@ -16,74 +16,46 @@ MessageDispatcher &MessageDispatcher::Instance()
 
 void MessageDispatcher::RegisterHandler(uint16_t msgId, MessageHandler handler)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
-    handlers_[msgId] = handler;
+    std::unique_lock<std::shared_mutex> lock(mutex_);
+    handlers_[msgId] = std::move(handler);
 }
 
-void MessageDispatcher::Dispatch(const MessageContext &ctx, Connection *conn, const char *data, size_t len)
+void MessageDispatcher::Dispatch(const MessageContext &ctx,
+                                 const char *data,
+                                 size_t len)
 {
-    if (!conn)
-        return;
-
     MessageHandler handler;
-    auto msgId = ctx.msgId;
+
     {
-        std::lock_guard<std::mutex> lock(mutex_);
-        auto it = handlers_.find(msgId);
+        std::shared_lock<std::shared_mutex> lock(mutex_);
+        auto it = handlers_.find(ctx.msgId);
         if (it == handlers_.end())
         {
-            LOG_ERROR("No handler for msgId: {}", msgId);
+            LOG_ERROR("No handler for msgId: {}", ctx.msgId);
             return;
         }
         handler = it->second;
     }
 
-    // 🔥 Step 1: 解码（新增）
-    auto msg = MessageDecoder::Instance().Decode(msgId, data, len);
+    // 解码
+    auto msg = MessageDecoder::Instance().Decode(ctx.msgId, data, len);
     if (!msg)
     {
-        LOG_ERROR("Decode failed msgId={}", msgId);
-        ErrorSender::Send(conn, ErrorCode::DECODE_FAILED);
+        LOG_ERROR("Decode failed msgId={}", ctx.msgId);
         return;
     }
 
-    std::shared_ptr<IMessage> sharedMsg = std::move(msg);
-    // --- 登录协议：仍然直走 ---
-    if (msgId == MSG_C2S_LOGIN)
+    // Actor 投递（关键）
+    auto actor = ctx.session ? ctx.session->GetActor() : nullptr;
+
+    if (actor)
     {
-        // 登录时 Player 尚未创建，传 nullptr 是符合逻辑的
-        handler(conn, nullptr, sharedMsg);
-        return;
+        actor->Post([handler = std::move(handler), ctx, msg = std::move(msg)]() mutable
+                    { handler(ctx, msg); });
     }
-
-    auto connPtr = conn->shared_from_this();
-    uint32_t currentSid = ctx.sessionId; // 记录当前的玩家 ID
-    // 2. 关键修改：通过网关传来的 sessionId (ctx.sessionId) 查找 Session
-    // 这里的 sessionId 是真正的玩家 ID
-    auto session = SessionManager::Instance().GetSession(currentSid);
-    if (!session)
+    else
     {
-        LOG_WARN("Session not found for sid: {}", currentSid);
-        return;
+        // 鉴权类消息（Login/Register）直接原地执行或交给业务线程池
+        handler(ctx, msg);
     }
-
-    auto player = session->GetPlayer();
-    auto actor = session->GetActor();
-    if (!player || !actor)
-    {
-        LOG_WARN("there is !player || !actor, session id is: {}", currentSid);
-        return;
-    }
-
-    // 🔥 Actor 投递（无 SessionManager 二次访问）
-    actor->Post([handler,
-                 connPtr,
-                 currentSid,
-                 player,
-                 sharedMsg]() mutable
-                {
-        if (player->GetSessionId() != currentSid)
-            return;
-
-        handler(connPtr.get(), player.get(), sharedMsg); });
 }

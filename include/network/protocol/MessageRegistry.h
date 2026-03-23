@@ -11,7 +11,7 @@ public:
     static void RegisterProto(uint16_t msgId)
     {
         MessageDecoder::Instance().Register(msgId,
-                                            [msgId](const char *data, size_t len) -> std::shared_ptr<IMessage>
+                                            [msgId](const char *data, size_t len) -> std::shared_ptr<anime::IMessage>
                                             {
                                                 auto pb = std::make_shared<PB>();
 

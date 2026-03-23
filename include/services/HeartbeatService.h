@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <memory>
 #include "network/protocol/IMessage.h"
+#include "network/protocol/MessageContext.h"
 
 class Connection;
 class Player;
@@ -15,5 +16,5 @@ public:
     void Init();
 
 private:
-    void HandleHeartbeat(Connection *conn, Player *player, std::shared_ptr<IMessage> msg);
+    void HandleHeartbeat(const MessageContext &ctx, std::shared_ptr<anime::IMessage> msg);
 };

@@ -13,7 +13,7 @@ class SessionManager
 public:
     static SessionManager &Instance();
 
-    std::shared_ptr<Session> CreateSession();
+    std::shared_ptr<Session> CreateSessionWithId(uint64_t id);
 
     std::shared_ptr<Session> GetSession(uint64_t id);
 
@@ -42,8 +42,6 @@ private:
     };
 
     Bucket buckets_[BUCKET_COUNT];
-
-    std::atomic<uint64_t> next_session_id_{1};
 
 private:
     size_t GetBucketIndex(uint64_t id) const

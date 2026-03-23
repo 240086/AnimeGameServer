@@ -2,6 +2,7 @@
 #include <thread>
 #include <vector>
 #include <csignal>
+#include <cstdint>
 #include <boost/asio.hpp>
 
 #include "common/logger/Logger.h"
@@ -24,21 +25,23 @@
 int main()
 {
     // 1. 初始化基础组件
-    Logger::Init();
 
-    if (!Config::Instance().Load("config/server.yaml"))
+    auto &cfg = Config::Instance();
+    if (!cfg.Load("config/server.yaml"))
     {
-        LOG_ERROR("load config failed");
+        LOG_ERROR("Failed to load config/server.yaml");
         return -1;
     }
 
+    Logger::Init();
+
     bool dbOk = MySQLConnectionPool::Instance().Init(
-        Config::Instance().GetMysqlHost(),
-        Config::Instance().GetMysqlPort(),
-        Config::Instance().GetMysqlUser(),
-        Config::Instance().GetMysqlPassword(),
-        Config::Instance().GetMysqlDatabase(),
-        Config::Instance().GetMysqlPoolSize());
+        cfg.GetValue<std::string>("database.mysql_host", "127.0.0.1"),
+        cfg.GetValue<int>("database.mysql_port", 3306),
+        cfg.GetValue<std::string>("database.mysql_user", "root"),
+        cfg.GetValue<std::string>("database.mysql_pwd", "240089"),
+        cfg.GetValue<std::string>("database.mysql_db", "anime_game"),
+        cfg.GetValue<int>("database.mysql_pool_size", 16));
 
     if (!dbOk)
     {
@@ -47,26 +50,19 @@ int main()
     }
 
     bool redisOk = RedisPool::Instance().Init(
-        Config::Instance().GetRedisHost(),
-        Config::Instance().GetRedisPort(),
-        Config::Instance().GetRedisPoolSize());
+        cfg.GetValue<std::string>("redis.host", "127.0.0.1"),
+        cfg.GetValue<int>("redis.port", 6379),
+        cfg.GetValue<int>("redis.pool_size", 16));
 
     if (!redisOk)
     {
         LOG_ERROR("Failed to initialize Redis Pool! Server exiting...");
         return -1;
     }
-    LOG_INFO("RedisPool initialized successfully at {}:{}",
-             Config::Instance().GetRedisHost(), Config::Instance().GetRedisPort());
 
-    size_t cpu = std::max<size_t>(2, std::thread::hardware_concurrency());
-
-    // IO 线程不要硬编码为 CPU/2，优先使用配置项，压测时可快速放大网络处理能力
-    size_t ioThreads = std::max<size_t>(
-        2,
-        static_cast<size_t>(Config::Instance().GetWorkerThreads()));
-
-    size_t logicThreads = cpu;
+    size_t hardware_threads = std::thread::hardware_concurrency();
+    size_t ioThreads = cfg.GetValue<size_t>("server.worker_threads", 8);
+    size_t logicThreads = std::max<size_t>(4, hardware_threads);
     LOG_INFO("Thread config: ioThreads={} logicThreads={}", ioThreads, logicThreads);
 
     // 2. 启动逻辑引擎 (重要修复：必须先启动 ActorSystem)
@@ -76,10 +72,11 @@ int main()
 
     // 3. 初始化业务系统
     ServiceManager::Instance().InitServices();
-    GachaPoolManager::Instance().LoadConfig(
-        Config::Instance().GetConfigDir() + "gacha_pool.yaml");
+    std::string configDir = cfg.GetValue<std::string>("server.config_dir", "./config/");
+    GachaPoolManager::Instance().LoadConfig(configDir + "gacha_pool.yaml");
 
-    int port = Config::Instance().GetServerPort();
+    int heartbeatTick = cfg.GetValue<int>("server.heartbeat_timeout_ms", 30000) / 1000;
+    int port = cfg.GetValue<int>("server.port", 9000);
 
     // 4. 网络基础设施
     boost::asio::io_context mainContext;

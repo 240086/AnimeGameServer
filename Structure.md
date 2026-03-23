@@ -7,18 +7,10 @@ AnimeGameServer
 │  └─ server.yaml
 ├─ include
 │  ├─ common
-│  │  ├─ config
-│  │  │  └─ Config.h
-│  │  ├─ ErrorCode.h
-│  │  ├─ logger
-│  │  │  └─ Logger.h
 │  │  ├─ metrics
 │  │  │  └─ ServerMetrics.h
-│  │  ├─ random
-│  │  │  └─ RandomEngine.h
-│  │  └─ thread
-│  │     ├─ GlobalThreadPool.h
-│  │     └─ ThreadPool.h
+│  │  └─ random
+│  │     └─ RandomEngine.h
 │  ├─ database
 │  │  ├─ mysql
 │  │  │  ├─ MySQLConnection.h
@@ -63,38 +55,28 @@ AnimeGameServer
 │  │     ├─ PlayerDirtyFlag.h
 │  │     └─ PlayerManager.h
 │  ├─ network
-│  │  ├─ asio
-│  │  │  └─ AsioContextPool.h
-│  │  ├─ buffer
-│  │  │  └─ RecvBuffer.h
-│  │  ├─ Connection.h
 │  │  ├─ dispatcher
 │  │  │  └─ MessageDispatcher.h
 │  │  ├─ manager
 │  │  │  └─ ConnectionManager.h
 │  │  ├─ protocol
 │  │  │  ├─ ErrorSender.h
-│  │  │  ├─ IMessage.h
+│  │  │  ├─ MessageContext.h
 │  │  │  ├─ MessageDecoder.h
-│  │  │  ├─ MessageId.h
 │  │  │  ├─ MessageMacro.h
 │  │  │  ├─ MessageRegistry.h
 │  │  │  ├─ messages
 │  │  │  │  └─ LoginMessage.h
-│  │  │  ├─ Packet.h
-│  │  │  ├─ PacketParser.h
 │  │  │  ├─ proto
 │  │  │  │  ├─ common.proto
 │  │  │  │  ├─ gacha.proto
 │  │  │  │  ├─ heartbeat.proto
 │  │  │  │  └─ login.proto
 │  │  │  ├─ ProtocolRegistry.h
-│  │  │  ├─ ProtoMessage.h
 │  │  │  └─ ResponseSender.h
-│  │  ├─ session
-│  │  │  ├─ Session.h
-│  │  │  └─ SessionManager.h
-│  │  └─ TcpServer.h
+│  │  └─ session
+│  │     ├─ Session.h
+│  │     └─ SessionManager.h
 │  └─ services
 │     ├─ BaseService.h
 │     ├─ GachaService.h
@@ -105,17 +87,10 @@ AnimeGameServer
 ├─ README.md
 ├─ src
 │  ├─ common
-│  │  ├─ config
-│  │  │  └─ Config.cpp
-│  │  ├─ logger
-│  │  │  └─ Logger.cpp
 │  │  ├─ metrics
 │  │  │  └─ ServerMetrics.cpp
-│  │  ├─ random
-│  │  │  └─ RandomEngine.cpp
-│  │  └─ thread
-│  │     ├─ GlobalThreadPool.cpp
-│  │     └─ ThreadPool.cpp
+│  │  └─ random
+│  │     └─ RandomEngine.cpp
 │  ├─ database
 │  │  ├─ mysql
 │  │  │  ├─ MySQLConnection.cpp
@@ -154,23 +129,15 @@ AnimeGameServer
 │  │     └─ PlayerManager.cpp
 │  ├─ main.cpp
 │  ├─ network
-│  │  ├─ asio
-│  │  │  └─ AsioContextPool.cpp
-│  │  ├─ buffer
-│  │  │  └─ RecvBuffer.cpp
-│  │  ├─ Connection.cpp
 │  │  ├─ dispatcher
 │  │  │  └─ MessageDispatcher.cpp
 │  │  ├─ manager
 │  │  │  └─ ConnectionManager.cpp
 │  │  ├─ protocol
-│  │  │  ├─ Packet.cpp
-│  │  │  ├─ PacketParser.cpp
 │  │  │  └─ ProtocolRegistry.cpp
-│  │  ├─ session
-│  │  │  ├─ Session.cpp
-│  │  │  └─ SessionManager.cpp
-│  │  └─ TcpServer.cpp
+│  │  └─ session
+│  │     ├─ Session.cpp
+│  │     └─ SessionManager.cpp
 │  └─ services
 │     ├─ GachaService.cpp
 │     ├─ HeartbeatService.cpp
@@ -180,5 +147,59 @@ AnimeGameServer
 ├─ Structure.md
 ├─ tests
 └─ third_party
+   └─ AnimeCore
+      ├─ CMakeLists.txt
+      ├─ include
+      │  ├─ common
+      │  │  ├─ config
+      │  │  │  └─ Config.h
+      │  │  ├─ ErrorCode.h
+      │  │  ├─ logger
+      │  │  │  └─ Logger.h
+      │  │  ├─ metrics
+      │  │  │  ├─ Metrics.h
+      │  │  │  └─ MetricsReporter.h
+      │  │  └─ thread
+      │  │     ├─ GlobalThreadPool.h
+      │  │     └─ ThreadPool.h
+      │  └─ network
+      │     ├─ asio
+      │     │  └─ AsioContextPool.h
+      │     ├─ buffer
+      │     │  └─ RecvBuffer.h
+      │     ├─ Connection.h
+      │     ├─ protocol
+      │     │  ├─ ClientPacket.h
+      │     │  ├─ ClientPacketParser.h
+      │     │  ├─ IMessage.h
+      │     │  ├─ InternalPacket.h
+      │     │  ├─ InternalPacketParser.h
+      │     │  ├─ MessageId.h
+      │     │  ├─ PacketParser.h
+      │     │  └─ ProtoMessage.h
+      │     └─ TcpServer.h
+      ├─ src
+      │  ├─ common
+      │  │  ├─ logger
+      │  │  │  └─ Logger.cpp
+      │  │  ├─ metrics
+      │  │  │  ├─ Metrics.cpp
+      │  │  │  └─ MetricsReporter.cpp
+      │  │  └─ thread
+      │  │     ├─ GlobalThreadPool.cpp
+      │  │     └─ ThreadPool.cpp
+      │  └─ network
+      │     ├─ asio
+      │     │  └─ AsioContextPool.cpp
+      │     ├─ buffer
+      │     │  └─ RecvBuffer.cpp
+      │     ├─ Connection.cpp
+      │     ├─ protocol
+      │     │  ├─ ClientPacket.cpp
+      │     │  ├─ ClientPacketParser.cpp
+      │     │  ├─ InternalPacket.cpp
+      │     │  └─ InternalPacketParser.cpp
+      │     └─ TcpServer.cpp
+      └─ Structure.md
 
 ```

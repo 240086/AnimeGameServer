@@ -4,12 +4,12 @@
 #include <mutex>
 #include <shared_mutex> // C++17 读写锁
 #include <memory>
-#include "IMessage.h"
+#include "network/protocol/IMessage.h"
 
 class MessageDecoder
 {
 public:
-    using DecodeFunc = std::function<std::shared_ptr<IMessage>(const char *, size_t)>;
+    using DecodeFunc = std::function<std::shared_ptr<anime::IMessage>(const char *, size_t)>;
 
     static MessageDecoder &Instance()
     {
@@ -25,7 +25,7 @@ public:
     }
 
     // 执行解码：共享锁保护（读），允许多个 IO 线程并发解码
-    std::shared_ptr<IMessage> Decode(uint16_t msgId, const char *data, size_t len)
+    std::shared_ptr<anime::IMessage> Decode(uint16_t msgId, const char *data, size_t len)
     {
         std::shared_lock<std::shared_mutex> lock(mutex_);
         auto it = decoders_.find(msgId);

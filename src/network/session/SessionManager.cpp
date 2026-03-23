@@ -11,20 +11,30 @@ SessionManager &SessionManager::Instance()
     return instance;
 }
 
-std::shared_ptr<Session> SessionManager::CreateSession()
+// 2. 新增核心接口，供 LoginService (网关模式) 使用
+std::shared_ptr<Session> SessionManager::CreateSessionWithId(uint64_t id)
 {
-    uint64_t id = next_session_id_++;
-
-    auto session = std::make_shared<Session>(id);
-
     size_t idx = GetBucketIndex(id);
+    auto &bucket = buckets_[idx];
 
+    std::shared_ptr<Session> session;
     {
-        std::lock_guard<std::mutex> lock(buckets_[idx].mutex);
-        buckets_[idx].sessions[id] = session;
+        std::lock_guard<std::mutex> lock(bucket.mutex);
+
+        // 防御性编程：检查是否已存在（防止网关重发登录包导致重复创建）
+        auto it = bucket.sessions.find(id);
+        if (it != bucket.sessions.end())
+        {
+            return it->second;
+        }
+
+        session = std::make_shared<Session>(id);
+        bucket.sessions[id] = session;
     }
 
+    // 依然保留你原有的度量统计
     ServerMetrics::Instance().IncSession();
+    LOG_DEBUG("Session created: sid={}", id);
 
     return session;
 }
