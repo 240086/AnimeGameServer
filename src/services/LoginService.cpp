@@ -76,7 +76,10 @@ void LoginService::HandleLogin(const MessageContext &ctx, std::shared_ptr<anime:
                 // 注意：DB 线程执行完必须通过 asio::post 切回该连接所属的 executor 执行发送
                 boost::asio::post(connPtr->GetSocket().get_executor(),
                                   [ctx]()
-                                  { ErrorSender::Send(ctx, ErrorCode::AUTH_FAILED); });
+                                  { 
+                                    auto session = SessionManager::Instance().GetSession(ctx.sid);
+                                    if (!session) return;
+                                    ErrorSender::Send(ctx, ErrorCode::AUTH_FAILED); });
                 return;
             }
             playerId = *playerIdOpt;
@@ -89,7 +92,9 @@ void LoginService::HandleLogin(const MessageContext &ctx, std::shared_ptr<anime:
                 LOG_ERROR("Load player failed: {}", playerId);
                 boost::asio::post(connPtr->GetSocket().get_executor(),
                                   [ctx]()
-                                  { ErrorSender::Send(ctx, ErrorCode::PLAYER_LOAD_FAILED); });
+                                  { auto session = SessionManager::Instance().GetSession(ctx.sid);
+                                    if (!session) return;
+                                    ErrorSender::Send(ctx, ErrorCode::PLAYER_LOAD_FAILED); });
                 return;
             }
 

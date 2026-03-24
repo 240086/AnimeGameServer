@@ -135,36 +135,53 @@ void SessionManager::CheckTimeout()
     auto now = std::chrono::steady_clock::now();
     std::vector<std::shared_ptr<Session>> to_remove;
 
-    // 1. 筛选超时 Session
+    // 1. 筛选超时 Session (锁粒度控制)
     for (size_t i = 0; i < BUCKET_COUNT; ++i)
     {
         std::lock_guard<std::mutex> lock(buckets_[i].mutex);
         for (auto it = buckets_[i].sessions.begin(); it != buckets_[i].sessions.end();)
         {
+            // 💡 建议：超时时间 180s 提取到配置中
             if (std::chrono::duration_cast<std::chrono::seconds>(now - it->second->GetLastHeartbeat()).count() > 180)
             {
                 to_remove.push_back(it->second);
-                it = buckets_[i].sessions.erase(it);
+                it = buckets_[i].sessions.erase(it); // 锁内只做容器移除
             }
             else
                 ++it;
         }
     }
 
-    // 2. 锁外执行踢人逻辑
+    // 2. 锁外执行逻辑清理 (关键修改)
     for (auto &session : to_remove)
     {
-        LOG_WARN("Session {} timeout, closing connection.", session->GetSessionId());
+        uint64_t sid = session->GetSessionId();
+        LOG_WARN("[SessionManager] Session {} timeout. Cleaning up logic context.", sid);
 
-        // 我们不在这里调用 Logout
-        // 我们通过 conn->Close() 或直接调用 RemoveSession 的逻辑来保证单向流动
-        auto conn = session->GetConnection();
-        if (conn)
+        // 💡 修复：千万不要调用 conn->Close() !!
+        // 我们只需要通知业务层该玩家下线了
+
+        // 如果有绑定的 Player 对象，执行存盘和资源卸载
+        auto player = session->GetPlayer();
+        if (player)
         {
-            conn->Close();
+            PlayerManager::Instance().AsyncSavePlayer(player);
+            UnbindPlayerFromSession(player->GetId());
         }
 
-        // 如果连接已经失效，强制走一遍清理确保资源回收
-        RemoveSession(session->GetSessionId());
+        // 💡 进阶：如果需要告知网关该 Session 已失效，可以发一个特殊的协议包
+        /*
+        auto conn = session->GetConnection();
+        if (conn) {
+            auto kick_notify = std::make_shared<InternalPacket>(sid, MSG_ID_SESSION_KICK, 0);
+            conn->Send(kick_notify);
+        }
+        */
+
+        // 清理 Actor 绑定等
+        session->UnbindActor();
+        session->UnbindPlayer();
+
+        // 💡 注意：由于上面已经从 buckets 删除了，不需要再调用 RemoveSession
     }
 }

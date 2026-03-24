@@ -50,8 +50,18 @@ void MessageDispatcher::Dispatch(const MessageContext &ctx,
 
     if (actor)
     {
-        actor->Post([handler = std::move(handler), ctx, msg = std::move(msg)]() mutable
-                    { handler(ctx, msg); });
+        auto weakSession = std::weak_ptr(ctx.session);
+        auto weakConn = ctx.conn;
+
+        actor->Post([handler = std::move(handler),
+                     ctx,
+                     msg = std::move(msg),
+                     weakSession,
+                     weakConn]() mutable
+                    {
+                        if (!weakSession.lock()) return;
+
+                        handler(ctx, msg); });
     }
     else
     {

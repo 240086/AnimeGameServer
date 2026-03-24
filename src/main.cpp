@@ -21,6 +21,9 @@
 #include "database/task/SavePlayerTask.h"
 #include "common/metrics/ServerMetrics.h"
 #include "database/redis/RedisPool.h"
+#include "network/protocol/InternalPacketParser.h"
+#include "network/protocol/InternalPacket.h"
+#include "network/dispatcher/MessageDispatcher.h"
 
 int main()
 {
@@ -89,11 +92,76 @@ int main()
 
     LOG_INFO("DBWorkerPool started with {} threads", SaveQueue::Instance().GetShardCount() * 2);
 
+    // A. 定义连接工厂：确保每个连接都有 InternalPacketParser
+    TcpServer::ConnectionFactory connectionFactory = [](boost::asio::io_context &io)
+    {
+        auto conn = std::make_shared<Connection>(io);
+        // 关键：后端必须用 InternalPacketParser 解析网关发来的 16 字节头
+        conn->SetParser(std::make_unique<InternalPacketParser>());
+        return conn;
+    };
+
+    // B. 定义 Accept 回调：分配 ID 并绑定业务分发
+    TcpServer::AcceptCallback onAccepted = [](const std::shared_ptr<Connection> &conn)
+    {
+        static std::atomic<uint64_t> next_conn_id{1};
+        uint64_t cid = next_conn_id.fetch_add(1);
+        conn->SetConnectionId(cid);
+
+        LOG_INFO("[Network] Gateway connected. assigned conn_id={}", cid);
+
+        // C. 绑定消息处理回调
+        Callbacks cb;
+        cb.onPacket = [](const std::shared_ptr<Connection> &c, std::shared_ptr<anime::IMessage> msg)
+        {
+            if (msg->GetType() != anime::MessageType::INTERNAL)
+                return;
+
+            auto packet = std::static_pointer_cast<InternalPacket>(msg);
+            uint64_t sid = packet->GetSessionId();
+
+            // 1. 自动维护 Session 状态
+            auto session = SessionManager::Instance().GetSession(sid);
+            if (!session)
+            {
+                // 如果是新连接或断线重连后的第一个包
+                session = SessionManager::Instance().CreateSessionWithId(sid);
+                LOG_INFO("[Session] New session auto-created for sid={}", sid);
+            }
+
+            // 2. 刷新物理链路绑定
+            // 这样当后端需要 push 消息给客户端时，session->GetConnection() 永远是最新的
+            session->BindConnection(c);
+            session->UpdateHeartbeat();
+
+            // 3. 业务逻辑分发 (进入 Actor 线程池)
+            MessageContext ctx;
+            ctx.session = session;
+            ctx.conn = c;
+            ctx.msgId = packet->GetMsgId();
+            ctx.seqId = packet->GetSequenceId(); // 如果你有
+
+            MessageDispatcher::Instance().Dispatch(ctx, packet->GetData(), packet->GetDataLen());
+            // 根据 msgId 查找对应的 Handler
+            LOG_DEBUG("[Network] Recv sid={} msgId={} len={}", sid, packet->GetMsgId(), packet->GetDataLen());
+        };
+
+        cb.onClosed = [](const std::shared_ptr<Connection> &c, uint64_t cid, uint64_t sid)
+        {
+            LOG_WARN("Gateway connection closed. conn_id={} sid={}", cid, sid);
+        };
+
+        conn->SetCallbacks(cb);
+    };
+
     // 5. 创建服务器
     auto server = std::make_shared<TcpServer>(
         mainContext,
         contextPool,
-        port);
+        port,
+        connectionFactory, // 传入工厂
+        onAccepted         // 传入回调
+    );
 
     // 6. 注册信号处理逻辑（优雅退出）
     signals.async_wait(
@@ -176,7 +244,7 @@ int main()
     {
         if (!ec)
         {
-            ServerMetrics::Instance().PrintReport();
+            // ServerMetrics::Instance().PrintReport();
 
             metricsTimer->expires_after(std::chrono::seconds(5));
             metricsTimer->async_wait(metricsHandler);
