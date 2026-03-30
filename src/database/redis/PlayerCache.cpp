@@ -54,7 +54,7 @@ std::optional<std::shared_ptr<Player>> PlayerCache::Load(uint64_t playerId)
                 player->GetInventory().AddItem(itemId, count);
             }
         }
-        LOG_INFO("PlayerCache: Successfully loaded player {} from Redis", playerId);
+        LOG_DEBUG("PlayerCache: Successfully loaded player {} from Redis", playerId);
         return player;
     }
     catch (const std::exception &e)

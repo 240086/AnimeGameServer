@@ -13,7 +13,6 @@ enum class ProtocolType
     INTERNAL // 内网（网关/服务间）
 };
 
-#pragma pack(push, 1)
 struct MessageContext
 {
     uint32_t sid;
@@ -26,4 +25,3 @@ struct MessageContext
     std::shared_ptr<Connection> conn;
 
 };
-#pragma pack(pop)

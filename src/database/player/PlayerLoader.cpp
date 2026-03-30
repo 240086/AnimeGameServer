@@ -29,11 +29,11 @@ bool PlayerLoader::Load(uint64_t playerId, Player &player)
     if (cached.has_value())
     {
         player.LoadFrom(*cached.value()); // ✅ 替换 operator=
-        LOG_INFO("Player {} loaded from aggregated Redis cache", playerId);
+        LOG_DEBUG("Player {} loaded from aggregated Redis cache", playerId);
         return true;
     }
 
-    LOG_INFO("Player {} cache miss, entering load pipeline...", playerId);
+    LOG_DEBUG("Player {} cache miss, entering load pipeline...", playerId);
 
     // ---------- 2. 分布式锁（防止击穿） ----------
     std::string lockKey = "lock:player:load:" + std::to_string(playerId);
@@ -56,7 +56,7 @@ bool PlayerLoader::Load(uint64_t playerId, Player &player)
         if (retry.has_value())
         {
             player.LoadFrom(*retry.value());
-            LOG_INFO("Player {} loaded from cache after wait", playerId);
+            LOG_DEBUG("Player {} loaded from cache after wait", playerId);
             return true;
         }
 
@@ -82,7 +82,7 @@ bool PlayerLoader::Load(uint64_t playerId, Player &player)
     // ---------- 5. 清脏标记 ----------
     (void)player.FetchDirtyFlags();
 
-    LOG_INFO("Player {} loaded from DB and cached", playerId);
+    LOG_DEBUG("Player {} loaded from DB and cached", playerId);
     return true;
 }
 

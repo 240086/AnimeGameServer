@@ -136,10 +136,13 @@ int main()
 
             // 3. 业务逻辑分发 (进入 Actor 线程池)
             MessageContext ctx;
+            ctx.sid = sid;
             ctx.session = session;
             ctx.conn = c;
             ctx.msgId = packet->GetMsgId();
             ctx.seqId = packet->GetSequenceId(); // 如果你有
+            ctx.protoType = ProtocolType::INTERNAL;
+            ctx.player = session->GetPlayer();
 
             MessageDispatcher::Instance().Dispatch(ctx, packet->GetData(), packet->GetDataLen());
             // 根据 msgId 查找对应的 Handler
@@ -186,6 +189,7 @@ int main()
                 ActorSystem::Instance().Stop();
                 contextPool.Stop();
                 mainContext.stop();
+                spdlog::shutdown();
             }
         });
 

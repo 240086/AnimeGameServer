@@ -29,7 +29,7 @@ void MessageDispatcher::Dispatch(MessageContext ctx, const char *data, size_t le
     auto msg = MessageDecoder::Instance().Decode(ctx.msgId, data, len);
     if (!msg)
     {
-        LOG_ERROR("Decode failed msgId={}", ctx.msgId);
+        LOG_ERROR("Decode failed msgId={}, sid={}, seq={}, len={}", ctx.msgId, ctx.sid, ctx.seqId, len);
         return;
     }
 

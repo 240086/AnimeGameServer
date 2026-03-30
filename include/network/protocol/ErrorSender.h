@@ -5,7 +5,6 @@
 #include "common.pb.h"
 #include "common/logger/Logger.h"
 #include "common/ErrorCode.h"
-#define DEBUG
 
 class ErrorSender
 {

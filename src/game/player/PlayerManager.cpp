@@ -23,7 +23,7 @@ bool PlayerManager::Login(uint64_t uid, std::shared_ptr<Player> newPlayer)
     if (it != map.end())
     {
         // 🔥 工业级处理：踢掉老玩家连接，清理旧实例
-        LOG_INFO("Player {} re-login, kicking old instance", uid);
+        LOG_DEBUG("Player {} re-login, kicking old instance", uid);
         // it->second->Kick("Multi-login"); // 假设 Player 有 Kick 方法
         map.erase(it);
     }
@@ -71,7 +71,7 @@ void PlayerManager::Logout(uint64_t uid)
 
     // 4. 第四步：执行最终存盘
     // 此时 player 依然被当前函数持有一个 shared_ptr 引用，保证对象存活
-    LOG_INFO("Player {} logout initiated, triggering final mandatory save.", uid);
+    LOG_DEBUG("Player {} logout initiated, triggering final mandatory save.", uid);
 
     // forceAll = true 确保将内存中所有数据（不仅仅是脏数据）刷回 Redis/DB
     // 这一步是数据一致性的终极保障

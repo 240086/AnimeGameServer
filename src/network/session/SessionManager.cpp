@@ -91,7 +91,7 @@ void SessionManager::KickPlayer(uint64_t playerId, uint32_t excludeSessionId, co
     else if (oldSession && oldSession->GetSessionId() == excludeSessionId)
     {
         // 这种情况通常发生在客户端重试过快，或者逻辑层映射更新超前
-        LOG_INFO("Skip kicking for player {} because it's the SAME session {}", playerId, excludeSessionId);
+        LOG_DEBUG("Skip kicking for player {} because it's the SAME session {}", playerId, excludeSessionId);
     }
 }
 
@@ -122,7 +122,7 @@ void SessionManager::RemoveSession(uint32_t id)
             // 3. 🔥 汇聚点：触发 Player 登出与最终存盘
             PlayerManager::Instance().Logout(uid);
 
-            LOG_INFO("Session {} closed, Player {} logged out via Unified Path.", id, uid);
+            LOG_DEBUG("Session {} closed, Player {} logged out via Unified Path.", id, uid);
         }
         session->UnbindActor();
         session->UnbindPlayer();

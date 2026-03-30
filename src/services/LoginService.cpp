@@ -32,14 +32,9 @@ void LoginService::Init()
 
 void LoginService::HandleLogin(const MessageContext &ctx, std::shared_ptr<anime::IMessage> msg)
 {
-    // 基础合法性检查
     if (!ctx.conn || !msg)
         return;
 
-    LOG_DEBUG("ENTERING HandleLogin: ctx_addr={}, sid={}, raw_sid_hex=0x{:08X}",
-              (void *)&ctx, ctx.sid, ctx.sid);
-
-    // 1. 尝试将基类 IMessage 转换为具体的 ProtoMessage 包装器
     auto loginMsg = std::dynamic_pointer_cast<ProtoMessage<anime::LoginRequest>>(msg);
     if (!loginMsg)
     {
@@ -48,7 +43,7 @@ void LoginService::HandleLogin(const MessageContext &ctx, std::shared_ptr<anime:
         return;
     }
 
-    // 2. 提前提取数据，ctx.conn 放入捕获列表确保异步期间连接对象不被析构
+    // 提取闭包所需数据
     auto connPtr = ctx.conn;
     auto username = loginMsg->Get().username();
     auto password = loginMsg->Get().password();
@@ -56,102 +51,102 @@ void LoginService::HandleLogin(const MessageContext &ctx, std::shared_ptr<anime:
     uint32_t seqId = ctx.seqId;
     auto protoType = ctx.protoType;
 
-    // 3. 投递到全局线程池执行 DB 负载（避免阻塞网关 IO 线程）
-    // 💡 必须捕获 ctx 以便在回调中使用 sid 和 seqId 寻址
+    // 投递到 DB 线程池
     GlobalThreadPool::Instance().GetPool().Enqueue(
         [sid, seqId, protoType, connPtr, username = std::move(username), password = std::move(password)]() mutable
         {
-            MessageContext ctx;
-            ctx.sid = sid;
-            ctx.seqId = seqId;
-            ctx.protoType = protoType;
-            ctx.conn = connPtr;
+            // 重新构造 DB 阶段的 Context
+            MessageContext dbCtx;
+            dbCtx.sid = sid;
+            dbCtx.seqId = seqId;
+            dbCtx.protoType = protoType;
+            dbCtx.conn = connPtr;
+
             uint64_t playerId = 0;
 
 #ifdef STRESS_TEST_MODE
-            // 压测模式：直接转换 ID，无需校验数据库
             try
             {
                 playerId = std::stoull(username);
             }
             catch (...)
             {
-                ErrorSender::Send(ctx, ErrorCode::AUTH_FAILED);
+                ErrorSender::Send(dbCtx, ErrorCode::AUTH_FAILED);
                 return;
             }
 #else
-            // 正常模式：校验账号密码
             auto playerIdOpt = AccountRepository::Instance().GetAccountId(username, password);
             if (!playerIdOpt)
             {
-                // 注意：DB 线程执行完必须通过 asio::post 切回该连接所属的 executor 执行发送
                 boost::asio::post(connPtr->GetSocket().get_executor(),
-                                  [ctx]()
-                                  { 
-                                    auto session = SessionManager::Instance().GetSession(ctx.sid);
-                                    if (!session) return;
-                                    ErrorSender::Send(ctx, ErrorCode::AUTH_FAILED); });
+                                  [dbCtx]()
+                                  { ErrorSender::Send(dbCtx, ErrorCode::AUTH_FAILED); });
                 return;
             }
             playerId = *playerIdOpt;
 #endif
 
-            // 4. 加载玩家数据对象
+            // 加载玩家数据
             auto player = std::make_shared<Player>(playerId);
             if (!PlayerLoader::Load(playerId, *player))
             {
                 LOG_ERROR("Load player failed: {}", playerId);
                 boost::asio::post(connPtr->GetSocket().get_executor(),
-                                  [ctx]()
-                                  { auto session = SessionManager::Instance().GetSession(ctx.sid);
-                                    if (!session) return;
-                                    ErrorSender::Send(ctx, ErrorCode::PLAYER_LOAD_FAILED); });
+                                  [dbCtx]()
+                                  { ErrorSender::Send(dbCtx, ErrorCode::PLAYER_LOAD_FAILED); });
                 return;
             }
 
-            // 5. 核心逻辑回流：切回网络线程，执行 Session 绑定与 Actor 激活
+            // 核心逻辑回流：切回网络/逻辑线程执行绑定
             boost::asio::post(connPtr->GetSocket().get_executor(),
-                              [ctx, connPtr, playerId, player]()
+                              [dbCtx, connPtr, playerId, player]() mutable
                               {
-                                  // 获取或创建针对该网关 sid 的 Session
-                                  auto session = SessionManager::Instance().GetSession(ctx.sid);
+                                  // 1. 获取并激活 Session
+                                  auto session = SessionManager::Instance().GetSession(dbCtx.sid);
                                   if (!session)
                                   {
-                                      // 第一次登录请求时，后端可能尚未为此 sid 创建 Session
-                                      session = SessionManager::Instance().CreateSessionWithId(ctx.sid);
+                                      session = SessionManager::Instance().CreateSessionWithId(dbCtx.sid);
                                       session->BindConnection(connPtr);
                                   }
 
-                                  // 6. 执行顶号逻辑与内存状态同步
-                                  // 确保全服只有一个 Session 拥有该 playerId
-                                  SessionManager::Instance().KickPlayer(playerId, ctx.sid, "Re-login");
+                                  // 2. 顶号逻辑 (互斥处理)
+                                  // 必须先在 SessionManager 层面踢出，防止多处 sid 指向同一个 uid
+                                  SessionManager::Instance().KickPlayer(playerId, dbCtx.sid, "Re-login");
+                                  // 确保内存中旧的 player 实例被正确清理和存档
                                   PlayerManager::Instance().Logout(playerId);
 
+                                  // 3. 将新玩家对象注入管理器
                                   if (!PlayerManager::Instance().Login(playerId, player))
                                   {
-                                      ErrorSender::Send(ctx, ErrorCode::AUTH_FAILED);
+                                      ErrorSender::Send(dbCtx, ErrorCode::AUTH_FAILED);
                                       return;
                                   }
 
-                                  // 7. 绑定 Actor 系统，将该玩家消息序列化
-                                  auto actor = std::make_shared<PlayerActor>(player);
+                                  // 4. 关键：建立 Session, Player, Actor 的三方绑定
+                                  // 绑定到 Session 内部，这样 main.cpp 的 onPacket 才能在后续包里找到 ctx.player
                                   session->BindPlayer(player);
-                                  session->BindActor(actor);
-                                  player->SetSessionId(ctx.sid);
 
-                                  // 在管理器中维护索引，方便后续通过 playerId 找会话
+                                  auto actor = std::make_shared<PlayerActor>(player);
+                                  session->BindActor(actor);
+
+                                  // 建立 UID -> Session 的反向索引
                                   SessionManager::Instance().BindPlayerToSession(playerId, session);
 
-                                  // 8. 构造并发送登录成功响应
+                                  // 5. 更新 Context 的灵魂：填充 player
+                                  dbCtx.player = player;
+                                  dbCtx.session = session;
+                                  player->SetSessionId(dbCtx.sid);
+
+                                  // 6. 构造响应
                                   anime::LoginResponse resp;
                                   resp.set_player_id(playerId);
                                   resp.set_currency(player->GetCurrency().Get());
 
-                                  // ResponseSender 会自动利用 ctx.sid 和 ctx.seqId 将包正确发回网关
-                                  ResponseSender::Send(ctx, MSG_S2C_LOGIN_RESP, resp);
+                                  // 发送响应（此时 dbCtx.player 已经有值，ResponseSender 会非常安全）
+                                  ResponseSender::Send(dbCtx, MSG_S2C_LOGIN_RESP, resp);
 
-                                  LOG_INFO("Player {} login success, sid={}, seqId={}",
-                                           playerId, ctx.sid, ctx.seqId);
+                                  LOG_DEBUG("Player {} login success, sid={}, seqId={}",
+                                           playerId, dbCtx.sid, dbCtx.seqId);
                               });
         });
 }

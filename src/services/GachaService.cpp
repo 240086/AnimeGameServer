@@ -127,6 +127,8 @@ void GachaService::HandleGachaTen(const MessageContext &ctx, std::shared_ptr<ani
     if (!ctx.conn || !player)
         return;
 
+    LOG_DEBUG("GachaTen DEBUG: ctx.sid={}, ctx.seqId={}", ctx.sid, ctx.seqId);
+
     ServerMetrics::Instance().IncGachaRequest();
     ServerMetrics::Instance().IncGachaTenRequest();
 
@@ -191,5 +193,5 @@ void GachaService::HandleGachaTen(const MessageContext &ctx, std::shared_ptr<ani
     ResponseSender::SendPayload(ctx, MSG_S2C_GACHA_DRAW_TEN_RESP, payload);
     ServerMetrics::Instance().IncGachaSuccess();
 
-    LOG_INFO("Player {} 10-draw success, sid={}, trace={}", player->GetId(), ctx.sid, traceId);
+    LOG_DEBUG("Player {} 10-draw success, sid={}, trace={}", player->GetId(), ctx.sid, traceId);
 }
