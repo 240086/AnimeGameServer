@@ -2,22 +2,23 @@
 
 #include <unordered_map>
 #include <memory>
-
+#include <shared_mutex>
 #include "game/gacha/GachaPool.h"
 
 class GachaPoolManager
 {
 public:
+    static GachaPoolManager &Instance();
 
-    static GachaPoolManager& Instance();
+    bool LoadConfig(const std::string &path);
 
-    bool LoadConfig(const std::string& path);
-
-    GachaPool& GetPool(int poolId);
+    std::shared_ptr<const GachaPool> GetPool(int poolId) const;
 
     bool HasPool(int poolId) const;
 
 private:
+    std::shared_ptr<const GachaPool> GetFallbackPoolLocked(int poolId) const;
 
-    std::unordered_map<int, std::unique_ptr<GachaPool>> pools_;
+    mutable std::shared_mutex mutex_;
+    std::unordered_map<int, std::shared_ptr<const GachaPool>> pools_;
 };

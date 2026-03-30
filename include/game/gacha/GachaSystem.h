@@ -14,7 +14,7 @@ public:
 
 private:
     GachaSystem() = default;
-    GachaItem DrawOnceFromPool(Player &player, GachaPool &pool);
+    GachaItem DrawOnceFromPool(Player &player, const GachaPool &pool);
 
 private:
     int default_pool_id_ = 1;

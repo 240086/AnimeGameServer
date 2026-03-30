@@ -9,18 +9,23 @@ void GachaPool::AddItem(const GachaItem &item)
     rarity_weight_[item.rarity] += item.weight;
 }
 
-GachaItem GachaPool::DrawByRarity(int rarity)
+GachaItem GachaPool::DrawByRarity(int rarity) const
 {
     auto it = rarity_items_.find(rarity);
 
-    if (it == rarity_items_.end())
+    if (it == rarity_items_.end() || it->second.empty())
     {
         throw std::runtime_error("rarity pool empty");
     }
 
     auto &items = it->second;
 
-    int totalWeight = rarity_weight_[rarity];
+    auto wIt = rarity_weight_.find(rarity);
+    int totalWeight = (wIt == rarity_weight_.end()) ? 0 : wIt->second;
+    if (totalWeight <= 0)
+    {
+        throw std::runtime_error("rarity pool has invalid total weight");
+    }
 
     int r = RandomEngine::Instance().RandInt(1, totalWeight);
 
@@ -37,4 +42,10 @@ GachaItem GachaPool::DrawByRarity(int rarity)
     }
 
     return items.back();
+}
+
+bool GachaPool::HasRarity(int rarity) const
+{
+    auto it = rarity_items_.find(rarity);
+    return it != rarity_items_.end() && !it->second.empty();
 }

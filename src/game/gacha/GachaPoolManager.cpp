@@ -3,6 +3,16 @@
 #include <stdexcept>
 #include <string>
 #include "common/logger/Logger.h"
+#include <array>
+#include <unordered_map>
+#include <memory>
+#include <shared_mutex>
+#include <mutex>
+
+namespace
+{
+    constexpr std::array<int, 3> kDefaultThreeStarItems = {3001, 3002, 3003};
+}
 
 GachaPoolManager &GachaPoolManager::Instance()
 {
@@ -30,8 +40,8 @@ bool GachaPoolManager::LoadConfig(const std::string &path)
         return false;
     }
 
-    // 清理旧数据，支持热重载
-    pools_.clear();
+    // 先在本地构建新池子快照，构建成功后再一次性替换，避免热更时读线程拿到半成品
+    std::unordered_map<int, std::shared_ptr<const GachaPool>> loadedPools;
 
     for (auto poolNode : poolsNode)
     {
@@ -41,7 +51,7 @@ bool GachaPoolManager::LoadConfig(const std::string &path)
         int poolId = poolNode["pool_id"].as<int>();
         std::string poolName = poolNode["name"] ? poolNode["name"].as<std::string>() : ("pool_" + std::to_string(poolId));
 
-        auto pool = std::make_unique<GachaPool>();
+        auto pool = std::make_shared<GachaPool>();
         int itemCount = 0;
 
         // 策略 1：兼容旧配置 items: [{id, name, rarity, weight}]
@@ -107,6 +117,25 @@ bool GachaPoolManager::LoadConfig(const std::string &path)
 
                 // 3星统一放入 standard
                 addRarityItems(std, "three_star", 3, 100);
+
+                // 防御性修复：有些运营配置只维护 4/5 星，遗漏 three_star。
+                // 为避免线上直接报 "rarity pool empty"，自动补一组基础三星道具。
+                if (!pool->HasRarity(3))
+                {
+                    for (int id : kDefaultThreeStarItems)
+                    {
+                        GachaItem item;
+                        item.id = id;
+                        item.name = "item_" + std::to_string(id);
+                        item.rarity = 3;
+                        item.weight = 100;
+                        pool->AddItem(item);
+                        ++itemCount;
+                    }
+
+                    LOG_WARN("Pool {}({}) has no three_star entries, injected {} default three_star items",
+                             poolId, poolName, kDefaultThreeStarItems.size());
+                }
             }
         }
 
@@ -116,40 +145,49 @@ bool GachaPoolManager::LoadConfig(const std::string &path)
             continue;
         }
 
+        if (!pool->HasRarity(5) || !pool->HasRarity(4) || !pool->HasRarity(3))
+        {
+            LOG_WARN("Pool {}({}) rarity coverage incomplete: has5={} has4={} has3={}",
+                     poolId, poolName, pool->HasRarity(5), pool->HasRarity(4), pool->HasRarity(3));
+        }
+
         pools_[poolId] = std::move(pool);
         LOG_INFO("Successfully loaded gacha pool {}({}) with {} items", poolId, poolName, itemCount);
     }
 
-    if (pools_.empty())
+    if (loadedPools.empty())
     {
         LOG_ERROR("Zero valid gacha pools loaded from {}", path);
         return false;
     }
 
+    size_t newPoolCount = 0;
+    {
+        std::unique_lock<std::shared_mutex> lock(mutex_);
+        pools_.swap(loadedPools);
+        newPoolCount = pools_.size();
+    }
+
+    LOG_INFO("Gacha config reload committed, pool_count={}", newPoolCount);
+
     return true;
 }
 
-GachaPool &GachaPoolManager::GetPool(int poolId)
+std::shared_ptr<const GachaPool> GachaPoolManager::GetFallbackPoolLocked(int poolId) const
 {
-    auto it = pools_.find(poolId);
-    if (it != pools_.end())
-    {
-        return *(it->second);
-    }
-
     // 防御性编程：优先回退到 pool 1 (通常是常驻池)
     auto fallback = pools_.find(1);
     if (fallback != pools_.end())
     {
         LOG_WARN("GachaPool {} not found, fallback to pool 1", poolId);
-        return *(fallback->second);
+        return fallback->second;
     }
 
     // 最后兜底：返回已加载的第一个池子，防止 .at() 或迭代器解引用崩溃
     if (!pools_.empty())
     {
         LOG_WARN("GachaPool {} not found, fallback to first available pool {}", poolId, pools_.begin()->first);
-        return *(pools_.begin()->second);
+        return pools_.begin()->second;
     }
 
     throw std::runtime_error("No gacha pools loaded in GachaPoolManager");
@@ -157,5 +195,19 @@ GachaPool &GachaPoolManager::GetPool(int poolId)
 
 bool GachaPoolManager::HasPool(int poolId) const
 {
+    std::shared_lock<std::shared_mutex> lock(mutex_);
     return pools_.find(poolId) != pools_.end();
+}
+
+std::shared_ptr<const GachaPool> GachaPoolManager::GetPool(int poolId) const
+{
+    std::shared_lock<std::shared_mutex> lock(mutex_);
+
+    auto it = pools_.find(poolId);
+    if (it != pools_.end())
+    {
+        return it->second;
+    }
+
+    return GetFallbackPoolLocked(poolId);
 }

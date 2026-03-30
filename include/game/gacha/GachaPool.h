@@ -8,13 +8,13 @@
 class GachaPool
 {
 public:
+    void AddItem(const GachaItem &item);
 
-    void AddItem(const GachaItem& item);
+    GachaItem DrawByRarity(int rarity) const;
 
-    GachaItem DrawByRarity(int rarity);
+    bool HasRarity(int rarity) const;
 
 private:
-
     std::unordered_map<int, std::vector<GachaItem>> rarity_items_;
 
     std::unordered_map<int, int> rarity_weight_;

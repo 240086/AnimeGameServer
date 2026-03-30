@@ -185,11 +185,11 @@ int main()
                     });
 
                 // 停止顺序：先断开连接 -> 停逻辑 -> 停网络池
+                spdlog::shutdown();
                 server->Stop();
                 ActorSystem::Instance().Stop();
                 contextPool.Stop();
                 mainContext.stop();
-                spdlog::shutdown();
             }
         });
 
@@ -248,7 +248,7 @@ int main()
     {
         if (!ec)
         {
-            // ServerMetrics::Instance().PrintReport();
+            ServerMetrics::Instance().PrintReport();
 
             metricsTimer->expires_after(std::chrono::seconds(5));
             metricsTimer->async_wait(metricsHandler);

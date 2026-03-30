@@ -110,6 +110,8 @@ void GachaService::HandleGacha(const MessageContext &ctx, std::shared_ptr<anime:
     {
         LOG_ERROR("Gacha(single) failed sid={} uid={} poolId={} err={}",
                   ctx.sid, player->GetId(), poolId, e.what());
+
+        player->GetCurrency().Add(kSingleDrawCost);
         IdempotencyService::Instance().Unlock(player->GetId(), traceId);
         ErrorSender::Send(ctx, ErrorCode::INTERNAL_ERROR);
         return;
@@ -204,6 +206,8 @@ void GachaService::HandleGachaTen(const MessageContext &ctx, std::shared_ptr<ani
     {
         LOG_ERROR("Gacha(ten) failed sid={} uid={} poolId={} err={}",
                   ctx.sid, player->GetId(), poolId, e.what());
+
+        player->GetCurrency().Add(totalCost);
         IdempotencyService::Instance().Unlock(player->GetId(), traceId);
         ErrorSender::Send(ctx, ErrorCode::INTERNAL_ERROR);
         return;
