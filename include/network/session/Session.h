@@ -10,9 +10,9 @@ class Player;
 class Session
 {
 public:
-    explicit Session(uint64_t sessionId);
+    explicit Session(uint32_t sessionId);
 
-    uint64_t GetSessionId() const;
+    uint32_t GetSessionId() const;
 
     void BindConnection(std::shared_ptr<Connection> conn);
 
@@ -47,7 +47,7 @@ public:
     }
 
 private:
-    uint64_t session_id_;
+    uint32_t session_id_;
 
     std::weak_ptr<Connection> connection_;
 

@@ -109,8 +109,6 @@ bool MySQLConnection::Execute(const std::string &sql)
     {
         LOG_ERROR("[MySQL] Execute Error: %s\n", mysql_error(conn_));
         LOG_ERROR("[MySQL] Failed SQL: %s\n", sql.c_str());
-        std::cerr << "!!! MySQL Execute Error: " << mysql_error(conn_) << std::endl;
-        std::cerr << "!!! Failed SQL: " << sql << std::endl;
         return false;
     }
     return true;
@@ -122,8 +120,6 @@ std::unique_ptr<MySQLResult> MySQLConnection::Query(const std::string &sql)
     {
         LOG_ERROR("[MySQL] Query Error: %s\n", mysql_error(conn_));
         LOG_ERROR("[MySQL] Failed SQL: %s\n", sql.c_str());
-        std::cerr << "!!! MySQL Query Error: " << mysql_error(conn_) << std::endl;
-        std::cerr << "!!! Failed SQL: " << sql << std::endl;
         return nullptr;
     }
 
@@ -133,8 +129,6 @@ std::unique_ptr<MySQLResult> MySQLConnection::Query(const std::string &sql)
         if (mysql_field_count(conn_) > 0)
         {
             LOG_ERROR("[MySQL] Store Result Error: %s\n", mysql_error(conn_));
-            std::cerr << "!!! MySQL Query Error: " << mysql_error(conn_) << std::endl;
-            std::cerr << "!!! Failed SQL: " << sql << std::endl;
         }
         return nullptr;
     }

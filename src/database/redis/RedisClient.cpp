@@ -30,7 +30,7 @@ bool RedisClient::Connect(const std::string &host, int port)
 
     if (!ctx_ || ctx_->err)
     {
-        std::cerr << "[Redis] Connect failed: " << (ctx_ ? ctx_->errstr : "null") << std::endl;
+        LOG_ERROR("[Redis] Connect failed: {}", (ctx_ ? ctx_->errstr : "null"));
         return false;
     }
 

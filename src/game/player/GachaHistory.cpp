@@ -53,7 +53,7 @@ std::vector<GachaRecord> GachaHistory::GetUnpersisted() const
     return result;
 }
 
-void GachaHistory::MarkPersisted(uint64_t seq)
+void GachaHistory::MarkPersisted(uint32_t seq)
 {
     if (seq > persistedSeq_)
     {

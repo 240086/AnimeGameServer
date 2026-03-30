@@ -42,7 +42,7 @@ private:
 
 private:
     // Session
-    std::atomic<uint64_t> sessionCount_{0};
+    std::atomic<uint32_t> sessionCount_{0};
 
     // DB
     std::atomic<uint64_t> dbTaskTotal_{0};

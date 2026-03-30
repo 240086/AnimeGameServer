@@ -8,7 +8,7 @@ class Player;
 
 struct GachaRecord
 {
-    uint64_t seq; // 全局递增ID（关键）
+    uint32_t seq; // 全局递增ID（关键）
     int rarity;
 };
 
@@ -31,15 +31,15 @@ public:
     std::vector<GachaRecord> GetUnpersisted() const;
 
     // 标记持久化到某个 seq
-    void MarkPersisted(uint64_t seq);
+    void MarkPersisted(uint32_t seq);
 
 private:
     std::deque<GachaRecord> history_;
 
     int pityCount_ = 0;
 
-    uint64_t nextSeq_ = 1;      // 下一个序号
-    uint64_t persistedSeq_ = 0; // 已持久化到的最大seq
+    uint32_t nextSeq_ = 1;      // 下一个序号
+    uint32_t persistedSeq_ = 0; // 已持久化到的最大seq
 
     Player *owner_ = nullptr;
 #ifndef NDEBUG

@@ -70,13 +70,13 @@ public:
     }
 
     // 🔥 设置当前合法 SessionId (由 LoginService 调用)
-    void SetSessionId(uint64_t sid)
+    void SetSessionId(uint32_t sid)
     {
         session_id_.store(sid, std::memory_order_release);
     }
 
     // 🔥 获取当前合法 SessionId (由 Dispatcher/Actor 校验)
-    uint64_t GetSessionId() const
+    uint32_t GetSessionId() const
     {
         return session_id_.load(std::memory_order_acquire);
     }
@@ -98,5 +98,5 @@ private:
 
     std::atomic<bool> is_logging_out_{false};
 
-    std::atomic<uint64_t> session_id_{0};
+    std::atomic<uint32_t> session_id_{0};
 };

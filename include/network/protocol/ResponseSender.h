@@ -43,6 +43,11 @@ public:
 
         std::shared_ptr<std::vector<char>> data;
 
+        if (ctx.sid > 1000000)
+        { // 假设你的 sid 应该是从网关分配的小整数
+            LOG_ERROR("SID ANOMALY DETECTED! sid={}, msgId={}", ctx.sid, msgId);
+        }
+
         // 根据上下文的协议类型进行封包
         if (ctx.protoType == ProtocolType::INTERNAL)
         {

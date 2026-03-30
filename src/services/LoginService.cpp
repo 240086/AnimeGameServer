@@ -36,6 +36,9 @@ void LoginService::HandleLogin(const MessageContext &ctx, std::shared_ptr<anime:
     if (!ctx.conn || !msg)
         return;
 
+    LOG_DEBUG("ENTERING HandleLogin: ctx_addr={}, sid={}, raw_sid_hex=0x{:08X}",
+              (void *)&ctx, ctx.sid, ctx.sid);
+
     // 1. 尝试将基类 IMessage 转换为具体的 ProtoMessage 包装器
     auto loginMsg = std::dynamic_pointer_cast<ProtoMessage<anime::LoginRequest>>(msg);
     if (!loginMsg)
@@ -49,12 +52,20 @@ void LoginService::HandleLogin(const MessageContext &ctx, std::shared_ptr<anime:
     auto connPtr = ctx.conn;
     auto username = loginMsg->Get().username();
     auto password = loginMsg->Get().password();
+    uint32_t sid = ctx.sid;
+    uint32_t seqId = ctx.seqId;
+    auto protoType = ctx.protoType;
 
     // 3. 投递到全局线程池执行 DB 负载（避免阻塞网关 IO 线程）
     // 💡 必须捕获 ctx 以便在回调中使用 sid 和 seqId 寻址
     GlobalThreadPool::Instance().GetPool().Enqueue(
-        [ctx, connPtr, username = std::move(username), password = std::move(password)]() mutable
+        [sid, seqId, protoType, connPtr, username = std::move(username), password = std::move(password)]() mutable
         {
+            MessageContext ctx;
+            ctx.sid = sid;
+            ctx.seqId = seqId;
+            ctx.protoType = protoType;
+            ctx.conn = connPtr;
             uint64_t playerId = 0;
 
 #ifdef STRESS_TEST_MODE

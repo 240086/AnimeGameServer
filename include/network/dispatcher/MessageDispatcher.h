@@ -12,7 +12,7 @@
 
 class Connection;
 class Player;
-using MessageHandler = std::function<void(const MessageContext &, std::shared_ptr<anime::IMessage>)>;
+using MessageHandler = std::function<void(MessageContext, std::shared_ptr<anime::IMessage>)>;
 
 class MessageDispatcher
 {
@@ -21,7 +21,7 @@ public:
 
     void RegisterHandler(uint16_t msgId, MessageHandler handler);
 
-    void Dispatch(const MessageContext &ctx,
+    void Dispatch(MessageContext ctx,
                   const char *data,
                   size_t len);
 

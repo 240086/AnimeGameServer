@@ -12,7 +12,7 @@ SessionManager &SessionManager::Instance()
 }
 
 // 2. 新增核心接口，供 LoginService (网关模式) 使用
-std::shared_ptr<Session> SessionManager::CreateSessionWithId(uint64_t id)
+std::shared_ptr<Session> SessionManager::CreateSessionWithId(uint32_t id)
 {
     size_t idx = GetBucketIndex(id);
     auto &bucket = buckets_[idx];
@@ -39,7 +39,7 @@ std::shared_ptr<Session> SessionManager::CreateSessionWithId(uint64_t id)
     return session;
 }
 
-std::shared_ptr<Session> SessionManager::GetSession(uint64_t id)
+std::shared_ptr<Session> SessionManager::GetSession(uint32_t id)
 {
     size_t idx = GetBucketIndex(id);
 
@@ -67,7 +67,7 @@ void SessionManager::UnbindPlayerFromSession(uint64_t playerId)
     player_to_session_.erase(playerId);
 }
 
-void SessionManager::KickPlayer(uint64_t playerId, uint64_t excludeSessionId, const std::string &reason)
+void SessionManager::KickPlayer(uint64_t playerId, uint32_t excludeSessionId, const std::string &reason)
 {
     std::shared_ptr<Session> oldSession;
     {
@@ -95,7 +95,7 @@ void SessionManager::KickPlayer(uint64_t playerId, uint64_t excludeSessionId, co
     }
 }
 
-void SessionManager::RemoveSession(uint64_t id)
+void SessionManager::RemoveSession(uint32_t id)
 {
     std::shared_ptr<Session> session;
     // 1. 从容器移除 Session
@@ -155,7 +155,7 @@ void SessionManager::CheckTimeout()
     // 2. 锁外执行逻辑清理 (关键修改)
     for (auto &session : to_remove)
     {
-        uint64_t sid = session->GetSessionId();
+        uint32_t sid = session->GetSessionId();
         LOG_WARN("[SessionManager] Session {} timeout. Cleaning up logic context.", sid);
 
         // 💡 修复：千万不要调用 conn->Close() !!

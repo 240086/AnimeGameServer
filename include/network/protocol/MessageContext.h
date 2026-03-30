@@ -13,15 +13,17 @@ enum class ProtocolType
     INTERNAL // 内网（网关/服务间）
 };
 
+#pragma pack(push, 1)
 struct MessageContext
 {
     uint32_t sid;
     uint32_t seqId;
     uint16_t msgId;
+    ProtocolType protoType = ProtocolType::INTERNAL;
 
     std::shared_ptr<Session> session;
     std::shared_ptr<Player> player;
     std::shared_ptr<Connection> conn;
 
-    ProtocolType protoType = ProtocolType::CLIENT;
 };
+#pragma pack(pop)

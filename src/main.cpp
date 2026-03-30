@@ -104,8 +104,8 @@ int main()
     // B. 定义 Accept 回调：分配 ID 并绑定业务分发
     TcpServer::AcceptCallback onAccepted = [](const std::shared_ptr<Connection> &conn)
     {
-        static std::atomic<uint64_t> next_conn_id{1};
-        uint64_t cid = next_conn_id.fetch_add(1);
+        static std::atomic<uint32_t> next_conn_id{1};
+        uint32_t cid = next_conn_id.fetch_add(1);
         conn->SetConnectionId(cid);
 
         LOG_INFO("[Network] Gateway connected. assigned conn_id={}", cid);
@@ -118,7 +118,7 @@ int main()
                 return;
 
             auto packet = std::static_pointer_cast<InternalPacket>(msg);
-            uint64_t sid = packet->GetSessionId();
+            uint32_t sid = packet->GetSessionId();
 
             // 1. 自动维护 Session 状态
             auto session = SessionManager::Instance().GetSession(sid);
@@ -146,7 +146,7 @@ int main()
             LOG_DEBUG("[Network] Recv sid={} msgId={} len={}", sid, packet->GetMsgId(), packet->GetDataLen());
         };
 
-        cb.onClosed = [](const std::shared_ptr<Connection> &c, uint64_t cid, uint64_t sid)
+        cb.onClosed = [](const std::shared_ptr<Connection> &c, uint32_t cid, uint32_t sid)
         {
             LOG_WARN("Gateway connection closed. conn_id={} sid={}", cid, sid);
         };

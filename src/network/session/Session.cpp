@@ -2,13 +2,13 @@
 #include "network/Connection.h"
 #include "game/player/Player.h"
 
-Session::Session(uint64_t sessionId)
+Session::Session(uint32_t sessionId)
     : session_id_(sessionId)
 {
     last_heartbeat_ = std::chrono::steady_clock::now();
 }
 
-uint64_t Session::GetSessionId() const
+uint32_t Session::GetSessionId() const
 {
     return session_id_;
 }
