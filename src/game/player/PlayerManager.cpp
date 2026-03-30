@@ -73,9 +73,9 @@ void PlayerManager::Logout(uint64_t uid)
     // 此时 player 依然被当前函数持有一个 shared_ptr 引用，保证对象存活
     LOG_DEBUG("Player {} logout initiated, triggering final mandatory save.", uid);
 
-    // forceAll = true 确保将内存中所有数据（不仅仅是脏数据）刷回 Redis/DB
-    // 这一步是数据一致性的终极保障
-    AsyncSavePlayer(player, true);
+    // 登出场景优先依赖脏标记增量存盘，避免压测/短连接场景下每次下线都触发全量写库
+    // 如需强一致全量落盘，建议仅在关服流程显式触发 forceAll
+    AsyncSavePlayer(player, false);
 }
 
 void PlayerManager::AsyncSavePlayer(std::shared_ptr<Player> player, bool forceAll)

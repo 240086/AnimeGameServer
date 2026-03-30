@@ -49,9 +49,15 @@ void GachaService::HandleGacha(const MessageContext &ctx, std::shared_ptr<anime:
 {
     // 👉 统一使用 ctx 获取上下文
     auto player = ctx.player;
-    if (!ctx.conn || !player)
+    if (!ctx.conn)
         return;
-
+    if (!player)
+    {
+        // 登录尚未完成/会话上下文丢失时，必须显式回包，避免网关请求管理器超时堆积
+        LOG_WARN("Reject gacha(single): sid={} seq={} because player is not bound to session", ctx.sid, ctx.seqId);
+        ErrorSender::Send(ctx, ErrorCode::AUTH_FAILED, "Player not ready");
+        return;
+    }
     ServerMetrics::Instance().IncGachaRequest();
     ServerMetrics::Instance().IncGachaSingleRequest();
 
@@ -94,7 +100,20 @@ void GachaService::HandleGacha(const MessageContext &ctx, std::shared_ptr<anime:
     }
 
     // 3. 执行逻辑
-    auto item = GachaSystem::Instance().DrawOnce(*player, poolId);
+    // auto item = GachaSystem::Instance().DrawOnce(*player, poolId);
+    GachaItem item;
+    try
+    {
+        item = GachaSystem::Instance().DrawOnce(*player, poolId);
+    }
+    catch (const std::exception &e)
+    {
+        LOG_ERROR("Gacha(single) failed sid={} uid={} poolId={} err={}",
+                  ctx.sid, player->GetId(), poolId, e.what());
+        IdempotencyService::Instance().Unlock(player->GetId(), traceId);
+        ErrorSender::Send(ctx, ErrorCode::INTERNAL_ERROR);
+        return;
+    }
     player->GetInventory().AddItem(item.id);
 
     // 4. 构建响应
@@ -124,8 +143,15 @@ void GachaService::HandleGacha(const MessageContext &ctx, std::shared_ptr<anime:
 void GachaService::HandleGachaTen(const MessageContext &ctx, std::shared_ptr<anime::IMessage> msg)
 {
     auto player = ctx.player;
-    if (!ctx.conn || !player)
+    if (!ctx.conn)
         return;
+    if (!player)
+    {
+        // 与单抽一致：不要静默返回，否则网关会持续出现 msgId=1101 超时
+        LOG_WARN("Reject gacha(ten): sid={} seq={} because player is not bound to session", ctx.sid, ctx.seqId);
+        ErrorSender::Send(ctx, ErrorCode::AUTH_FAILED, "Player not ready");
+        return;
+    }
 
     LOG_DEBUG("GachaTen DEBUG: ctx.sid={}, ctx.seqId={}", ctx.sid, ctx.seqId);
 
@@ -167,7 +193,22 @@ void GachaService::HandleGachaTen(const MessageContext &ctx, std::shared_ptr<ani
         return;
     }
 
-    auto results = GachaSystem::Instance().DrawTen(*player, poolId);
+    // auto results = GachaSystem::Instance().DrawTen(*player, poolId);
+
+    std::vector<GachaItem> results;
+    try
+    {
+        results = GachaSystem::Instance().DrawTen(*player, poolId);
+    }
+    catch (const std::exception &e)
+    {
+        LOG_ERROR("Gacha(ten) failed sid={} uid={} poolId={} err={}",
+                  ctx.sid, player->GetId(), poolId, e.what());
+        IdempotencyService::Instance().Unlock(player->GetId(), traceId);
+        ErrorSender::Send(ctx, ErrorCode::INTERNAL_ERROR);
+        return;
+    }
+
     anime::GachaDrawTenResponse respPb;
     for (const auto &item : results)
     {

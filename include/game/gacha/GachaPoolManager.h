@@ -15,6 +15,8 @@ public:
 
     GachaPool& GetPool(int poolId);
 
+    bool HasPool(int poolId) const;
+
 private:
 
     std::unordered_map<int, std::unique_ptr<GachaPool>> pools_;

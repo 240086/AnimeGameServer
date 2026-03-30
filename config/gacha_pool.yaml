@@ -1,20 +1,53 @@
 pools:
-
+  # ---------------------------------------------------------
+  # 1. 角色活动祈愿 (限定池) - 参考：鸣神寻踪 (雷电将军)
+  # ---------------------------------------------------------
   - pool_id: 1
-    name: standard
+    name: "character_event_warp"
+    type: 1 # EVENT_CHARACTER
+    base_prob:
+      five_star: 60      # 0.6%
+      four_star: 510     # 5.1%
+      three_star: 9430   # 94.3%
+    pity_limit: 90       # 90抽必出5星
+    up_items:
+      five_star: [1005]           # 雷电将军 (UP)
+      four_star: [1101, 1102, 1103] # 班尼特、九条、香菱 (UP)
+    standard_items:
+      five_star: [1001, 1002, 1003] # 琴、迪卢克、莫娜 (常驻五星)
+      four_star: [2101, 2102]       # 其他四星武器/角色
 
-    items:
-      - id: 1
-        name: five_star_character
-        rarity: 5
-        weight: 6
+  # ---------------------------------------------------------
+  # 2. 武器活动祈愿 (限定池) - 参考：神铸赋形 (薙草之稻光)
+  # ---------------------------------------------------------
+  - pool_id: 2
+    name: "weapon_event_warp"
+    type: 2 # EVENT_WEAPON
+    base_prob:
+      five_star: 70      # 0.7% (武器池通常概率略高)
+      four_star: 600     # 6.0%
+      three_star: 9330   # 93.3%
+    pity_limit: 80       # 武器池保底通常为80
+    up_items:
+      five_star: [2001, 2002]     # 专武 A、专武 B
+      four_star: [2105, 2106, 2107]
+    standard_items:
+      five_star: [2003, 2004]     # 常驻五星武器
+      four_star: [1105, 1106]     # 乱入的四星角色
 
-      - id: 2
-        name: four_star_character
-        rarity: 4
-        weight: 50
-
-      - id: 3
-        name: three_star_weapon
-        rarity: 3
-        weight: 944
+  # ---------------------------------------------------------
+  # 3. 常驻祈愿 (奔行世间)
+  # ---------------------------------------------------------
+  - pool_id: 3
+    name: "standard_warp"
+    type: 3 # STANDARD
+    base_prob:
+      five_star: 60
+      four_star: 510
+      three_star: 9430
+    pity_limit: 90
+    # 常驻池没有 UP，所有物品都在同一个库里随机
+    all_items:
+      five_star: [1001, 1002, 1003, 2003, 2004] # 角色武器混杂
+      four_star: [1101, 1105, 2101, 2105]
+      three_star: [3001, 3002, 3003]
