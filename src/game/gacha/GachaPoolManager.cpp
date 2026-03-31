@@ -151,7 +151,7 @@ bool GachaPoolManager::LoadConfig(const std::string &path)
                      poolId, poolName, pool->HasRarity(5), pool->HasRarity(4), pool->HasRarity(3));
         }
 
-        pools_[poolId] = std::move(pool);
+        loadedPools[poolId] = std::move(pool);
         LOG_INFO("Successfully loaded gacha pool {}({}) with {} items", poolId, poolName, itemCount);
     }
 

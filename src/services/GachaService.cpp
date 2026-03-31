@@ -132,14 +132,21 @@ void GachaService::HandleGacha(const MessageContext &ctx, std::shared_ptr<anime:
         return;
     }
 
-    // 5. 标脏与保存幂等
+    // 5. 标脏
     player->MarkDirty(PlayerDirtyFlag::CURRENCY);
     player->MarkDirty(PlayerDirtyFlag::INVENTORY);
-    IdempotencyService::Instance().SaveResult(player->GetId(), traceId, payload);
+    // IdempotencyService::Instance().SaveResult(player->GetId(), traceId, payload);
 
-    // 6. 返回结果：使用 ctx 确保网关能精准送达
+    // 6. 返回结果：先回包，缩短客户端感知 RT
     ResponseSender::SendPayload(ctx, MSG_S2C_GACHA_DRAW_RESP, payload);
     ServerMetrics::Instance().IncGachaSuccess();
+
+    // 7. 回包后落幂等结果，失败则主动解锁，避免 key 长时间停留在 "P"
+    if (!IdempotencyService::Instance().SaveResult(player->GetId(), traceId, payload))
+    {
+        LOG_WARN("Idempotency SaveResult failed (single), uid={}, trace={}", player->GetId(), traceId);
+        IdempotencyService::Instance().Unlock(player->GetId(), traceId);
+    }
 }
 
 void GachaService::HandleGachaTen(const MessageContext &ctx, std::shared_ptr<anime::IMessage> msg)
@@ -233,10 +240,18 @@ void GachaService::HandleGachaTen(const MessageContext &ctx, std::shared_ptr<ani
 
     player->MarkDirty(PlayerDirtyFlag::CURRENCY);
     player->MarkDirty(PlayerDirtyFlag::INVENTORY);
-    IdempotencyService::Instance().SaveResult(player->GetId(), traceId, payload);
+    // IdempotencyService::Instance().SaveResult(player->GetId(), traceId, payload);
 
+    // 先返回结果，减少客户端感知延迟
     ResponseSender::SendPayload(ctx, MSG_S2C_GACHA_DRAW_TEN_RESP, payload);
     ServerMetrics::Instance().IncGachaSuccess();
+
+    // 再持久化幂等结果；如果失败，回滚锁状态，避免积压 "P" 锁
+    if (!IdempotencyService::Instance().SaveResult(player->GetId(), traceId, payload))
+    {
+        LOG_WARN("Idempotency SaveResult failed (ten), uid={}, trace={}", player->GetId(), traceId);
+        IdempotencyService::Instance().Unlock(player->GetId(), traceId);
+    }
 
     LOG_DEBUG("Player {} 10-draw success, sid={}, trace={}", player->GetId(), ctx.sid, traceId);
 }

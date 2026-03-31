@@ -17,13 +17,6 @@ namespace
 
 bool PlayerLoader::Load(uint64_t playerId, Player &player)
 {
-    // 1. 检查是否是已知的“不存在玩家” (空缓存保护)
-    if (PlayerCache::Instance().IsNullCache(playerId))
-    {
-        LOG_WARN("Player {} is marked as non-existent in NullCache", playerId);
-        return false;
-    }
-
     // ---------- 1. 读聚合缓存 ----------
     auto cached = PlayerCache::Instance().Load(playerId);
     if (cached.has_value())

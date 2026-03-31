@@ -34,9 +34,9 @@ public:
 
     /**
      * @brief 业务完成：将真实的序列化回包存入 Redis，覆盖“处理中”的状态
-     * @param ttlSeconds 结果缓存时间。通常设置较长（如 300 秒/5分钟），足以应付客户端断网重连
+     * @param ttlSeconds 结果缓存时间。默认 60 秒，兼顾重试回放与 Redis 写放大控制
      */
-    bool SaveResult(uint64_t playerId, const std::string &traceId, const std::string &payload, int ttlSeconds = 300);
+    bool SaveResult(uint64_t playerId, const std::string &traceId, const std::string &payload, int ttlSeconds = 60);
 
     /**
      * @brief 异常回滚：如果业务执行中途失败（例如前置条件不足，余额不够），必须释放锁
