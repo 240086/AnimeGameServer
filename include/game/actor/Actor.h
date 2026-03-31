@@ -15,6 +15,7 @@ public:
     void Process(int maxTasks = 32);
 
     bool HasMoreTasks();
+    size_t GetMailboxSize() const;
     bool TrySchedule();
     void SetScheduled(bool v);
 

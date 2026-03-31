@@ -58,6 +58,19 @@ void MessageDispatcher::Dispatch(MessageContext ctx, const char *data, size_t le
 
     if (actor)
     {
+        // 软削峰：当单玩家 Mailbox 过深时，快速失败避免排队延迟雪崩
+        constexpr size_t kMailboxSoftLimit = 256;
+        if (actor->GetMailboxSize() >= kMailboxSoftLimit)
+        {
+            LOG_WARN("Drop overloaded request msgId={} sid={} uid={} mailbox={}",
+                     ctx.msgId,
+                     ctx.sid,
+                     ctx.player ? ctx.player->GetId() : 0,
+                     actor->GetMailboxSize());
+            ErrorSender::Send(ctx, ErrorCode::INTERNAL_ERROR, "Server busy");
+            return;
+        }
+
         // 既然已经有 Actor 了，为了绝对安全，强引用存一份
         auto sessionPtr = ctx.session;
         actor->Post([handler, ctx, msg, sessionPtr]() mutable

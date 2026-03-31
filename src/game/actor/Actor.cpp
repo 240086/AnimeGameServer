@@ -6,54 +6,70 @@ void Actor::Post(Task task)
     if (IsStopped())
         return;
 
-    if (!mailbox_.Push(std::move(task)))
+    bool wasEmpty = false;
+
+    // 🔴 不允许 silent drop（简单 backpressure）
+    while (!mailbox_.PushAndCheckWasEmpty(std::move(task), wasEmpty))
     {
-        // TODO: 可以加日志或统计
-        return;
+        std::this_thread::yield();
     }
 
-    if (TrySchedule())
+    // 🔴 只在 empty -> non-empty 时触发调度
+    if (wasEmpty)
     {
-        ActorSystem::Instance().Schedule(shared_from_this());
+        if (TrySchedule())
+        {
+            ActorSystem::Instance().Schedule(shared_from_this());
+        }
     }
 }
 
 void Actor::Process(int maxTasks)
 {
-    Task task;
-    int count = 0;
+    std::vector<Task> tasks;
+    tasks.reserve(static_cast<size_t>(maxTasks));
 
-    // 1. 纯粹执行任务，最多执行 maxTasks 个，防止占用 Worker 太久（饥饿）
-    while (count < maxTasks && mailbox_.Pop(task))
+    const size_t count = mailbox_.PopBatch(tasks, static_cast<size_t>(maxTasks));
+
+    for (size_t i = 0; i < count; ++i)
     {
+        auto &task = tasks[i];
         if (task)
             task();
-        count++;
     }
 
-    // 2. 释放调度权：这是最关键的一步
+    // 🔴 释放调度权
     SetScheduled(false);
 
-    // 3. 唯一的 Double Check 屏障
-    // 如果交出调度权后，mailbox 恰好进了新任务，尝试重新抢占调度权
-    if (HasMoreTasks() && TrySchedule())
+    // 🔴 双检（配合 wasEmpty 机制已经安全）
+    if (HasMoreTasks())
     {
-        ActorSystem::Instance().Schedule(shared_from_this());
+        if (TrySchedule())
+        {
+            ActorSystem::Instance().Schedule(shared_from_this());
+        }
     }
 }
 
 bool Actor::HasMoreTasks()
 {
-    return mailbox_.Size() > 0;
+    return mailbox_.SizeApprox() > 0;
+}
+
+size_t Actor::GetMailboxSize() const
+{
+    return mailbox_.SizeApprox();
 }
 
 bool Actor::TrySchedule()
 {
     bool expected = false;
-    return is_scheduled_.compare_exchange_strong(expected, true);
+    return is_scheduled_.compare_exchange_strong(
+        expected, true,
+        std::memory_order_acq_rel);
 }
 
 void Actor::SetScheduled(bool v)
 {
-    is_scheduled_.store(v);
+    is_scheduled_.store(v, std::memory_order_release);
 }

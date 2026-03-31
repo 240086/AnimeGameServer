@@ -43,21 +43,22 @@ void ActorSystem::Stop()
 
 void ActorSystem::Schedule(std::shared_ptr<Actor> actor)
 {
-    if (!running_.load() || !actor)
+    if (!running_.load(std::memory_order_relaxed) || !actor)
         return;
 
-    // 🔥 使用业务ID路由
     size_t shardIndex = actor->GetRoutingKey() % shards_.size();
     auto &shard = shards_[shardIndex];
 
     {
         std::lock_guard<std::mutex> lock(shard.mutex);
 
-        // 🔥 限流（防雪崩）
         constexpr size_t MAX_QUEUE_SIZE = 10000;
+
         if (shard.ready_queue.size() > MAX_QUEUE_SIZE)
         {
-            return; // 可以后续加日志
+            // 🔴 不再修改 actor 状态
+            // 这里只能丢调度请求，但 actor 仍保持 scheduled=true
+            return;
         }
 
         shard.ready_queue.push(std::move(actor));
@@ -68,31 +69,84 @@ void ActorSystem::Schedule(std::shared_ptr<Actor> actor)
 
 void ActorSystem::Worker(int shardIndex)
 {
-    auto &shard = shards_[shardIndex];
+    auto &localShard = shards_[shardIndex];
 
     while (true)
     {
         std::shared_ptr<Actor> actor = nullptr;
 
+        // 1. 优先处理本地队列
+        if (localShard.TryPop(actor))
         {
-            std::unique_lock<std::mutex> lock(shard.mutex);
-            shard.cond.wait(lock, [this, &shard]
-                            { return !running_.load() || !shard.ready_queue.empty(); });
-
-            if (!running_.load() && shard.ready_queue.empty())
-                return;
-
-            if (!shard.ready_queue.empty())
+            // fast path
+        }
+        else
+        {
+            // 2. 尝试偷任务（关键）
+            if (!TrySteal(shardIndex, shards_, actor))
             {
-                actor = std::move(shard.ready_queue.front());
-                shard.ready_queue.pop();
+                // 3. 进入等待（避免空转）
+                std::unique_lock<std::mutex> lock(localShard.mutex);
+
+                localShard.cond.wait_for(
+                    lock,
+                    std::chrono::milliseconds(1),
+                    [this, &localShard]
+                    {
+                        return !running_.load() ||
+                               !localShard.ready_queue.empty();
+                    });
+
+                if (!running_.load() && localShard.ready_queue.empty())
+                    return;
+
+                continue;
             }
         }
 
+        // 4. 执行 Actor
         if (actor)
         {
-            // 极简主义：Worker 只管触发，状态机全权交由 Actor 内部控制
-            actor->Process(64);
+            size_t pending = actor->GetMailboxSize();
+
+            int budget = 64;
+            if (pending >= 512)
+                budget = 512;
+            else if (pending >= 128)
+                budget = 256;
+            else if (pending >= 64)
+                budget = 128;
+
+            actor->Process(budget);
         }
     }
+}
+
+bool ActorSystem::TrySteal(size_t selfIndex,
+                           std::vector<ActorSystem::Shard> &shards,
+                           std::shared_ptr<Actor> &actor)
+{
+    const size_t n = shards.size();
+    if (n <= 1)
+        return false;
+
+    // 使用 thread_local 随机数生成器，性能最高
+    static thread_local std::mt19937 gen(std::random_device{}());
+    std::uniform_int_distribution<size_t> dist(0, n - 1);
+
+    size_t startIdx = dist(gen);
+
+    for (size_t i = 0; i < n; ++i)
+    {
+        size_t idx = (startIdx + i) % n;
+        if (idx == selfIndex)
+            continue; // 不偷自己
+
+        // 如果别人正在处理，偷取者不应该死等，而是换一家偷
+        if (shards[idx].TryPop(actor))
+        {
+            return true;
+        }
+    }
+    return false;
 }

@@ -7,6 +7,7 @@
 #include <condition_variable>
 #include <atomic>
 #include <memory>
+#include <random>
 
 class Actor;
 
@@ -29,7 +30,23 @@ private:
         std::mutex mutex;
         std::condition_variable cond;
         std::queue<std::shared_ptr<Actor>> ready_queue;
+
+        // 🔴 新增：非阻塞 pop（用于 stealing）
+        bool TryPop(std::shared_ptr<Actor> &actor)
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            if (ready_queue.empty())
+                return false;
+
+            actor = std::move(ready_queue.front());
+            ready_queue.pop();
+            return true;
+        }
     };
+
+    bool TrySteal(size_t selfIndex,
+                  std::vector<ActorSystem::Shard> &shards,
+                  std::shared_ptr<Actor> &actor);
 
     std::vector<Shard> shards_;
     std::vector<std::thread> workers_;

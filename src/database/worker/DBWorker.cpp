@@ -62,6 +62,13 @@ void DBWorker::Run()
         if (!conn)
         {
             LOG_ERROR("DBWorker {} failed to acquire MySQL connection", shardIndex_);
+            // 连接池耗尽时不能丢任务：将本批任务回灌队列，等待后续重试
+            for (auto &task : tasks)
+            {
+                if (!task)
+                    continue;
+                SaveQueue::Instance().PushToShard(shardIndex_, std::move(task));
+            }
             // 简单规避，防止因连接池耗尽导致的死循环 CPU 占用
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             continue;
