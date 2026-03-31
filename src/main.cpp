@@ -44,7 +44,7 @@ int main()
         cfg.GetValue<std::string>("database.mysql_user", "root"),
         cfg.GetValue<std::string>("database.mysql_pwd", "240089"),
         cfg.GetValue<std::string>("database.mysql_db", "anime_game"),
-        cfg.GetValue<int>("database.mysql_pool_size", 16));
+        cfg.GetValue<int>("database.mysql_pool_size", 128));
 
     if (!dbOk)
     {
@@ -55,7 +55,7 @@ int main()
     bool redisOk = RedisPool::Instance().Init(
         cfg.GetValue<std::string>("redis.host", "127.0.0.1"),
         cfg.GetValue<int>("redis.port", 6379),
-        cfg.GetValue<int>("redis.pool_size", 16));
+        cfg.GetValue<int>("redis.pool_size", 128));
 
     if (!redisOk)
     {

@@ -2,7 +2,7 @@ server:
   name: "GameServer-1"
   id: 1
   port: 9000
-  worker_threads: 8
+  worker_threads: 32
   # 新增：心跳超时检测，防止网关僵尸连接
   heartbeat_timeout_ms: 30000 
 
@@ -12,14 +12,14 @@ database:
   mysql_user: "root"
   mysql_pwd: "240089"  # 加上引号，确保作为字符串解析
   mysql_db: "anime_game"
-  mysql_pool_size: 16  # 建议调整为更合理的数值
+  mysql_pool_size: 128  # 建议调整为更合理的数值
   mysql_charset: "utf8mb4" # 建议加上，处理中文不乱码
 
 redis:
   host: "127.0.0.1"
   port: 6379
   password: "240089" # 加上引号
-  pool_size: 16
+  pool_size: 128
   db_index: 0        # 建议加上，方便区分逻辑
 
 log:

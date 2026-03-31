@@ -25,7 +25,7 @@ public:
     size_t GetShardQueueSize(size_t shardIndex);
 
 private:
-    static constexpr size_t SHARD_COUNT = 16;
+    static constexpr size_t SHARD_COUNT = 32;
 
     struct Shard
     {
