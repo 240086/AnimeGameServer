@@ -3,6 +3,7 @@
 #include <atomic>
 #include <functional>
 #include <vector>
+#include <thread>
 #include "game/actor/ObjectPool.h"
 
 class Mailbox
@@ -10,6 +11,16 @@ class Mailbox
 public:
     using Task = std::function<void()>;
     static constexpr size_t MAX_MAILBOX = 2048;
+
+    struct Node
+    {
+        Task task;
+        // 🔴 必须是原子指针
+        std::atomic<Node *> next{nullptr};
+
+        Node() = default;
+        Node(Task &&t) : task(std::move(t)) {}
+    };
 
     Mailbox()
     {
@@ -20,12 +31,11 @@ public:
 
     ~Mailbox()
     {
-        // 清理所有节点
         Node *node = head_;
         while (node)
         {
-            Node *next = node->next;
-            pool_.Release(node);
+            Node *next = node->next.load(std::memory_order_relaxed);
+            GetPool().Release(node);
             node = next;
         }
     }
@@ -33,17 +43,22 @@ public:
     // 🔴 MPSC Push
     bool PushAndCheckWasEmpty(Task task, bool &wasEmpty)
     {
+        // 1. 容量检查
         if (approx_size_.load(std::memory_order_relaxed) >= MAX_MAILBOX)
             return false;
 
-        Node *node = pool_.Acquire();
+        Node *node = GetPool().Acquire();
         node->task = std::move(task);
-        node->next = nullptr;
+        node->next.store(nullptr, std::memory_order_relaxed);
 
-        Node *prev = tail_.exchange(node, std::memory_order_acq_rel);
-        prev->next = node;
-
+        // 🔴 必须在链接入队之前加数量，防止被并发 Pop 减成负数
         wasEmpty = (approx_size_.fetch_add(1, std::memory_order_acq_rel) == 0);
+
+        // 🔴 核心入队逻辑 (Dmitry Vyukov 算法)
+        Node *prev = tail_.exchange(node, std::memory_order_acq_rel);
+
+        // 发布节点给消费者
+        prev->next.store(node, std::memory_order_release);
 
         return true;
     }
@@ -52,29 +67,47 @@ public:
     size_t PopBatch(std::vector<Task> &tasks, size_t maxCount)
     {
         size_t count = 0;
-
         Node *head = head_;
-        Node *next = head->next;
+        Node *next = head->next.load(std::memory_order_acquire);
 
-        while (next && count < maxCount)
+        while (count < maxCount)
         {
+            if (!next)
+            {
+                // 🔴 防假死漏洞修复：判断是否真的空了
+                // 如果 head 不等于 tail，说明有个生产者正在执行 exchange 和 next.store 之间
+                if (head != tail_.load(std::memory_order_acquire))
+                {
+                    // 生产者被系统挂起了，消费者必须自旋等待，决不能当天空队列退出！
+                    while ((next = head->next.load(std::memory_order_acquire)) == nullptr)
+                    {
+                        std::this_thread::yield();
+                    }
+                }
+                else
+                {
+                    break; // 确实空了
+                }
+            }
+
+            // 提取任务
             tasks.push_back(std::move(next->task));
 
+            // 前进
             Node *old = head;
             head = next;
-            next = next->next;
+            next = head->next.load(std::memory_order_acquire);
 
-            // 🔴 回收节点（替代 delete）
-            pool_.Release(old);
-
+            // 归还 Dummy Node（注意：此时 head 成了新的 Dummy Node）
+            GetPool().Release(old);
             ++count;
         }
 
-        head_ = head;
+        head_ = head; // 消费者本地指针更新
 
         if (count > 0)
         {
-            approx_size_.fetch_sub(count, std::memory_order_acq_rel);
+            approx_size_.fetch_sub(count, std::memory_order_release);
         }
 
         return count;
@@ -86,21 +119,15 @@ public:
     }
 
 private:
-    struct Node
+    // 🔴 修复对象池作用域：所有 Mailbox 必须共享一个静态池
+    static LockFreeObjectPool<Node> &GetPool()
     {
-        Task task;
-        Node *next = nullptr;
+        static LockFreeObjectPool<Node> global_pool;
+        return global_pool;
+    }
 
-        Node() = default;
-        Node(Task &&t) : task(std::move(t)) {}
-    };
-
-    // 单消费者读
-    Node *head_;
-
-    // 多生产者写
-    std::atomic<Node *> tail_;
-
-    std::atomic<size_t> approx_size_{0};
-    LockFreeObjectPool<Node> pool_;
+    // 🔴 避免伪共享 (False Sharing)：强迫读写变量分不到不同的 CPU 缓存行 (Cache Line)
+    alignas(64) Node *head_;                         // 仅消费者频繁读写
+    alignas(64) std::atomic<Node *> tail_;           // 生产者频繁写，消费者偶尔读
+    alignas(64) std::atomic<size_t> approx_size_{0}; // 双方都会频繁读写
 };
