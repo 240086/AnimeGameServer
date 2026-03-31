@@ -1,73 +1,106 @@
 #pragma once
 
-#include <queue>
-#include <mutex>
-#include <functional>
 #include <atomic>
+#include <functional>
 #include <vector>
+#include "game/actor/ObjectPool.h"
 
 class Mailbox
 {
 public:
-    static constexpr size_t MAX_MAILBOX = 2048;
     using Task = std::function<void()>;
+    static constexpr size_t MAX_MAILBOX = 2048;
 
-    // 🔴 新接口：返回 push 前是否为空
+    Mailbox()
+    {
+        Node *dummy = new Node();
+        head_ = dummy;
+        tail_.store(dummy, std::memory_order_relaxed);
+    }
+
+    ~Mailbox()
+    {
+        // 清理所有节点
+        Node *node = head_;
+        while (node)
+        {
+            Node *next = node->next;
+            pool_.Release(node);
+            node = next;
+        }
+    }
+
+    // 🔴 MPSC Push
     bool PushAndCheckWasEmpty(Task task, bool &wasEmpty)
     {
-        std::lock_guard<std::mutex> lock(mutex_);
-
-        if (queue_.size() >= MAX_MAILBOX)
-        {
+        if (approx_size_.load(std::memory_order_relaxed) >= MAX_MAILBOX)
             return false;
-        }
 
-        wasEmpty = queue_.empty();
-        queue_.push(std::move(task));
-        approx_size_.fetch_add(1, std::memory_order_relaxed);
+        Node *node = pool_.Acquire();
+        node->task = std::move(task);
+        node->next = nullptr;
+
+        Node *prev = tail_.exchange(node, std::memory_order_acq_rel);
+        prev->next = node;
+
+        wasEmpty = (approx_size_.fetch_add(1, std::memory_order_acq_rel) == 0);
+
         return true;
     }
 
-    bool Pop(Task &task)
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-
-        if (queue_.empty())
-            return false;
-
-        task = std::move(queue_.front());
-        queue_.pop();
-        approx_size_.fetch_sub(1, std::memory_order_relaxed);
-        return true;
-    }
-
+    // 🔴 单消费者批量 Pop
     size_t PopBatch(std::vector<Task> &tasks, size_t maxCount)
     {
-        if (maxCount == 0)
-            return 0;
+        size_t count = 0;
 
-        std::lock_guard<std::mutex> lock(mutex_);
+        Node *head = head_;
+        Node *next = head->next;
 
-        size_t popped = 0;
-        while (!queue_.empty() && popped < maxCount)
+        while (next && count < maxCount)
         {
-            tasks.push_back(std::move(queue_.front()));
-            queue_.pop();
-            ++popped;
+            tasks.push_back(std::move(next->task));
+
+            Node *old = head;
+            head = next;
+            next = next->next;
+
+            // 🔴 回收节点（替代 delete）
+            pool_.Release(old);
+
+            ++count;
         }
 
-        approx_size_.fetch_sub(popped, std::memory_order_relaxed);
-        return popped;
+        head_ = head;
+
+        if (count > 0)
+        {
+            approx_size_.fetch_sub(count, std::memory_order_acq_rel);
+        }
+
+        return count;
     }
 
-    // 🔴 无锁 size（近似值）
     size_t SizeApprox() const
     {
         return approx_size_.load(std::memory_order_relaxed);
     }
 
 private:
-    std::queue<Task> queue_;
-    mutable std::mutex mutex_;
+    struct Node
+    {
+        Task task;
+        Node *next = nullptr;
+
+        Node() = default;
+        Node(Task &&t) : task(std::move(t)) {}
+    };
+
+    // 单消费者读
+    Node *head_;
+
+    // 多生产者写
+    std::atomic<Node *> tail_;
+
     std::atomic<size_t> approx_size_{0};
+    LockFreeObjectPool<Node> pool_;
 };
